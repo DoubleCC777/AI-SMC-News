@@ -337,16 +337,16 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
             <div className="space-y-1.5 min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2 w-full">
                 <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border shadow-sm ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border shadow-sm transition-all ${
                     aiVerdict.badgeColor === 'emerald'
-                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      ? 'bg-emerald-950/50 text-emerald-300 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.25)]'
                       : aiVerdict.badgeColor === 'yellow'
-                      ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40'
+                      ? 'bg-amber-950/50 text-amber-300 border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
                       : aiVerdict.badgeColor === 'orange'
-                      ? 'bg-orange-500/20 text-orange-300 border-orange-500/40'
+                      ? 'bg-orange-950/50 text-orange-300 border-orange-500/50 shadow-[0_0_10px_rgba(249,115,22,0.25)]'
                       : aiVerdict.badgeColor === 'rose'
-                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                      : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                      ? 'bg-rose-950/50 text-rose-300 border-rose-500/50 shadow-[0_0_10px_rgba(244,63,94,0.25)]'
+                      : 'bg-cyan-950/50 text-cyan-300 border-cyan-500/50'
                   }`}
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
@@ -454,12 +454,12 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
                     key={tf}
                     className={`p-2.5 rounded-xl border transition-all flex flex-col justify-between gap-2 shadow-md ${
                       badgeColor === 'emerald'
-                        ? 'bg-gradient-to-b from-emerald-950/30 to-[#070e12] border-emerald-500/30 shadow-emerald-950/20 hover:border-emerald-500/50'
+                        ? 'bg-gradient-to-b from-emerald-950/40 to-[#070e12] border-emerald-500/40 shadow-emerald-950/30 hover:border-emerald-500/60'
                         : badgeColor === 'yellow'
-                        ? 'bg-gradient-to-b from-yellow-950/30 to-[#121107] border-yellow-500/30 shadow-yellow-950/20 hover:border-yellow-500/50'
+                        ? 'bg-gradient-to-b from-amber-950/40 to-[#121107] border-amber-500/40 shadow-amber-950/30 hover:border-amber-500/60'
                         : badgeColor === 'orange'
-                        ? 'bg-gradient-to-b from-orange-950/30 to-[#140e07] border-orange-500/30 shadow-orange-950/20 hover:border-orange-500/50'
-                        : 'bg-gradient-to-b from-rose-950/30 to-[#14070a] border-rose-500/30 shadow-rose-950/20 hover:border-rose-500/50'
+                        ? 'bg-gradient-to-b from-orange-950/40 to-[#140e07] border-orange-500/40 shadow-orange-950/30 hover:border-orange-500/60'
+                        : 'bg-gradient-to-b from-rose-950/40 to-[#14070a] border-rose-500/40 shadow-rose-950/30 hover:border-rose-500/60'
                     }`}
                   >
                     {/* Header: Timeframe + % น่าเข้า Badge */}
@@ -477,9 +477,9 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
                       <div
                         className={`px-2 py-0.5 rounded-md text-[10.5px] font-mono font-bold whitespace-nowrap border shrink-0 ${
                           badgeColor === 'emerald'
-                            ? 'text-emerald-300 bg-emerald-500/20 border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.2)]'
+                            ? 'text-emerald-300 bg-emerald-500/20 border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.25)]'
                             : badgeColor === 'yellow'
-                            ? 'text-yellow-300 bg-yellow-500/20 border-yellow-500/40'
+                            ? 'text-amber-300 bg-amber-500/20 border-amber-500/40 shadow-[0_0_8px_rgba(245,158,11,0.25)]'
                             : badgeColor === 'orange'
                             ? 'text-orange-300 bg-orange-500/20 border-orange-500/40'
                             : 'text-rose-300 bg-rose-500/20 border-rose-500/40'
@@ -493,12 +493,12 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
                     <div
                       className={`w-full min-h-[30px] py-1 px-1 rounded-lg border text-center font-bold leading-tight shadow-sm transition-all flex items-center justify-center gap-1 ${
                         badgeColor === 'emerald'
-                          ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300'
+                          ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-300 shadow-[0_0_8px_rgba(16,185,129,0.15)]'
                           : badgeColor === 'yellow'
-                          ? 'bg-yellow-500/10 border-yellow-500/25 text-yellow-300'
+                          ? 'bg-amber-500/15 border-amber-500/35 text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.15)]'
                           : badgeColor === 'orange'
-                          ? 'bg-orange-500/10 border-orange-500/25 text-orange-300'
-                          : 'bg-rose-500/10 border-rose-500/25 text-rose-300'
+                          ? 'bg-orange-500/15 border-orange-500/35 text-orange-300 shadow-[0_0_8px_rgba(249,115,22,0.15)]'
+                          : 'bg-rose-500/15 border-rose-500/35 text-rose-300 shadow-[0_0_8px_rgba(244,63,94,0.15)]'
                       }`}
                       title={scoreBadge}
                     >

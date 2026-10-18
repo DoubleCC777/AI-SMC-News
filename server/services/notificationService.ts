@@ -145,8 +145,14 @@ export class NotificationService {
         {
           title: isTpAlert
             ? `🎯 [TAKE PROFIT ALERT] ${data.symbol} (${data.companyName}) ใกล้ถึงโซน TP แล้ว! (เตือนตั้งแต่ -2%)`
-            : `🟢 [BUY ALERT] ${data.symbol} (${data.companyName}) เข้าสู่จุดซื้อสะสมสถาบัน!`,
-          color: isTpAlert ? 0xc084fc : 0x10b981,
+            : data.confidenceScore >= 75
+              ? `🟢 [STRONG BUY] ${data.symbol} (${data.companyName}) เข้าซื้อได้ โอกาสกำไรสูง!`
+              : `🟡 [ACCUMULATE] ${data.symbol} (${data.companyName}) ทยอยสะสม แบ่งไม้เข้าซื้อ`,
+          color: isTpAlert
+            ? 0xc084fc
+            : data.confidenceScore >= 75
+              ? 0x10b981
+              : 0xf59e0b,
           description: isTpAlert
             ? `ราคาขยับขึ้นมาใกล้เป้าหมายทำกำไร Take Profit (TP) แนะนำแบ่งไม้ขายทำกำไรที่ราคานั้นๆ (เตือนตั้งแต่ -2% ก่อนถึง)`
             : `ระบบตรวจพบสัญญาณซื้อตามกรอบ Smart Money Concepts พร้อมวิเคราะห์ผสาน 3 Timeframes`,
@@ -365,19 +371,19 @@ export class NotificationService {
     const tierLabelShort = isTpAlert
       ? "ใกล้ถึงโซน TP"
       : data.confidenceScore >= 75
-        ? "โอกาสกำไรสูง"
+        ? "เข้าซื้อได้"
         : data.confidenceScore >= 65
           ? "ทยอยสะสม"
           : data.confidenceScore >= 51
             ? "ควรรอย่อ"
-            : "ไม่ควรเข้า";
+            : "เสี่ยงสูง";
 
     const tierColor = isTpAlert
       ? "#c084fc"
       : data.confidenceScore >= 75
         ? "#34d399"
         : data.confidenceScore >= 65
-          ? "#facc15"
+          ? "#fbbf24"
           : data.confidenceScore >= 51
             ? "#fb923c"
             : "#f87171";
@@ -425,21 +431,21 @@ export class NotificationService {
     const statusPillBg = isTpAlert
       ? "#240c42"
       : data.confidenceScore >= 75
-        ? "#022c22"
+        ? "#022c1e"
         : data.confidenceScore >= 65
-          ? "#052e16"
+          ? "#241804"
           : data.confidenceScore >= 51
-            ? "#2a1502"
-            : "#3b0712";
+            ? "#2e1205"
+            : "#380712";
 
     const statusPillBorder = isTpAlert
       ? "#c084fc"
       : data.confidenceScore >= 75
         ? "#10b981"
         : data.confidenceScore >= 65
-          ? "#34d399"
+          ? "#f59e0b"
           : data.confidenceScore >= 51
-            ? "#f59e0b"
+            ? "#fb923c"
             : "#f43f5e";
 
     const statusPillColor = isTpAlert
@@ -447,20 +453,20 @@ export class NotificationService {
       : data.confidenceScore >= 75
         ? "#6ee7b7"
         : data.confidenceScore >= 65
-          ? "#a7f3d0"
+          ? "#fef08a"
           : data.confidenceScore >= 51
-            ? "#fde047"
-            : "#fca5a5";
+            ? "#fed7aa"
+            : "#fecdd3";
 
     const statusPillText = isTpAlert
       ? "🎯 ใกล้ถึง TP"
       : data.confidenceScore >= 75
-        ? "● เข้าซื้อได้"
+        ? "🟢 เข้าซื้อได้"
         : data.confidenceScore >= 65
-          ? "● ทยอยสะสม"
+          ? "🟡 ทยอยสะสม"
           : data.confidenceScore >= 51
-            ? "● ควรรอย่อ"
-            : "● ไม่ควรเข้า เสี่ยงสูง";
+            ? "🟠 ควรรอย่อ"
+            : "🔴 เสี่ยงสูง";
 
     // ── 1. Hero Pricing & AI Verdict Box ──
     const bodyContents: any[] = [
@@ -623,33 +629,33 @@ export class NotificationService {
         const isOrange = it.score >= 51 && it.score < 65;
 
         const boxBg = isGreen
-          ? "#042f2e"
+          ? "#022c1e"
           : isYellow
-            ? "#362402"
+            ? "#241804"
             : isOrange
-              ? "#381604"
-              : "#3b0717";
+              ? "#2e1205"
+              : "#380712";
 
         const boxBorder = isGreen
-          ? "#059669"
+          ? "#10b981"
           : isYellow
-            ? "#d97706"
+            ? "#f59e0b"
             : isOrange
-              ? "#ea580c"
-              : "#e11d48";
+              ? "#fb923c"
+              : "#f43f5e";
 
         const labelColor = isGreen
           ? "#6ee7b7"
           : isYellow
-            ? "#fde047"
+            ? "#fef08a"
             : isOrange
-              ? "#fdba74"
-              : "#fca5a5";
+              ? "#fed7aa"
+              : "#fecdd3";
 
         const itemColor = isGreen
           ? "#34d399"
           : isYellow
-            ? "#facc15"
+            ? "#fbbf24"
             : isOrange
               ? "#fb923c"
               : "#fb7185";
@@ -971,7 +977,11 @@ export class NotificationService {
             type: "flex",
             altText: isTpAlert
               ? `🎯 [TP ALERT] ${data.symbol} ใกล้ถึงเป้าทำกำไร! ($${data.currentPrice.toFixed(2)})`
-              : `${data.symbol} ถึงจุดเข้าซื้อสถาบันแล้ว! ($${data.currentPrice.toFixed(2)}) • AI ${data.confidenceScore}% (${tierLabel})`,
+              : data.confidenceScore >= 75
+                ? `🟢 [BUY ALERT] ${data.symbol} เข้าซื้อได้ โอกาสกำไรสูง! ($${data.currentPrice.toFixed(2)}) • AI ${data.confidenceScore}%`
+                : data.confidenceScore >= 65
+                  ? `🟡 [ACCUMULATE] ${data.symbol} ทยอยสะสม แบ่งไม้เข้าซื้อ ($${data.currentPrice.toFixed(2)}) • AI ${data.confidenceScore}%`
+                  : `📊 [AI·SMC] ${data.symbol} ($${data.currentPrice.toFixed(2)}) • AI ${data.confidenceScore}% (${tierLabelShort})`,
             contents: flexBubble,
           },
         ],
