@@ -369,7 +369,7 @@ export class NotificationService {
             : "ไม่ควรเข้า เสี่ยงสูง";
 
     const tierLabelShort = isTpAlert
-      ? "ใกล้ถึงโซน TP"
+      ? "ใกล้ถึง TP"
       : data.confidenceScore >= 75
         ? "เข้าซื้อได้"
         : data.confidenceScore >= 65
@@ -578,7 +578,7 @@ export class NotificationService {
               {
                 type: "text",
                 text: isTpAlert
-                  ? `${displayConfidence}% (เตือนที่ 98% = ${curr}${tpThreshold.toFixed(0)})`
+                  ? `${displayConfidence}% (ใกล้ถึง TP)`
                   : `${data.confidenceScore}% (${tierLabelShort})`,
                 size: "xs",
                 weight: "bold",
@@ -1002,7 +1002,7 @@ export class NotificationService {
           {
             type: "flex",
             altText: isTpAlert
-              ? `🎯 [TP ALERT] ${data.symbol} ใกล้ถึงเป้าทำกำไร! ($${data.currentPrice.toFixed(2)}) • ถึงเป้า ${displayConfidence}% (เตือนที่ 98% = ${curr}${tpThreshold.toFixed(0)})`
+              ? `🎯 [TP ALERT] ${data.symbol} ใกล้ถึงเป้าทำกำไร! (${curr}${data.currentPrice.toFixed(2)}) • ถึงเป้า ${displayConfidence}% (ใกล้ถึง TP)`
               : data.confidenceScore >= 75
                 ? `🟢 [BUY ALERT] ${data.symbol} เข้าซื้อได้ โอกาสกำไรสูง! ($${data.currentPrice.toFixed(2)}) • AI ${data.confidenceScore}%`
                 : data.confidenceScore >= 65
