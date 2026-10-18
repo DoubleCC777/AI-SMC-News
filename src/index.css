@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: #06080e;
+    color: #f1f5f9;
+    font-family: 'Plus Jakarta Sans', 'Prompt', 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-overflow-scrolling: touch;
+    text-rendering: optimizeLegibility;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  button, [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    touch-action: manipulation;
+  }
+}
+
+/* ── Minimalist Scrollbar ── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ── Luxury Glass & Card Surfaces ── */
+.glass-panel {
+  background: rgba(12, 16, 26, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.glass-card {
+  background: rgba(18, 24, 38, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-card:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* ── Ambient Background Lighting ── */
+.app-shell {
+  background: 
+    radial-gradient(1400px 700px at 20% -10%, rgba(34, 211, 238, 0.05), transparent 60%),
+    radial-gradient(1000px 500px at 80% -10%, rgba(99, 102, 241, 0.04), transparent 50%),
+    radial-gradient(800px 800px at 50% 110%, rgba(16, 185, 129, 0.03), transparent 60%),
+    #06080e;
+}

@@ -1,0 +1,18 @@
+services:
+  ai-smc-news:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-smc-news
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    volumes:
+      - alert-data:/app/server/data
+
+volumes:
+  alert-data:
+    name: ai_smc_alert_data
