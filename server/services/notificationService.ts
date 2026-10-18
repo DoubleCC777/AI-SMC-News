@@ -403,6 +403,13 @@ export class NotificationService {
       ].includes(data.symbol.replace(/\.BK$/i, "").toUpperCase());
     const curr = isThai ? "฿" : "$";
 
+    const tpTarget = sellMax > 0 ? sellMax : (data.targetPrice1Y > 0 ? data.targetPrice1Y : sellMin);
+    const tpThreshold = tpTarget * 0.98;
+    const tpScore = tpTarget > 0 && data.currentPrice > 0
+      ? Math.min(100, Math.max(90, Math.round((data.currentPrice / tpTarget) * 100)))
+      : (data.confidenceScore >= 90 ? data.confidenceScore : 98);
+    const displayConfidence = isTpAlert ? tpScore : data.confidenceScore;
+
     const gainNum =
       data.currentPrice > 0
         ? ((data.targetPrice1Y - data.currentPrice) / data.currentPrice) * 100
@@ -570,7 +577,9 @@ export class NotificationService {
               },
               {
                 type: "text",
-                text: `${data.confidenceScore}% (${tierLabelShort})`,
+                text: isTpAlert
+                  ? `${displayConfidence}% (เตือนที่ 98% = ${curr}${tpThreshold.toFixed(0)})`
+                  : `${data.confidenceScore}% (${tierLabelShort})`,
                 size: "xs",
                 weight: "bold",
                 color: tierColor,
@@ -993,7 +1002,7 @@ export class NotificationService {
           {
             type: "flex",
             altText: isTpAlert
-              ? `🎯 [TP ALERT] ${data.symbol} ใกล้ถึงเป้าทำกำไร! ($${data.currentPrice.toFixed(2)})`
+              ? `🎯 [TP ALERT] ${data.symbol} ใกล้ถึงเป้าทำกำไร! ($${data.currentPrice.toFixed(2)}) • ถึงเป้า ${displayConfidence}% (เตือนที่ 98% = ${curr}${tpThreshold.toFixed(0)})`
               : data.confidenceScore >= 75
                 ? `🟢 [BUY ALERT] ${data.symbol} เข้าซื้อได้ โอกาสกำไรสูง! ($${data.currentPrice.toFixed(2)}) • AI ${data.confidenceScore}%`
                 : data.confidenceScore >= 65

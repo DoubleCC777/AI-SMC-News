@@ -410,6 +410,12 @@ export class BackgroundAlertScanner {
 
             console.log(`[BackgroundScanner] 🎯 SINGLE TP ALERT TRIGGERED: ${sym} at ${curr}${currentPrice} (Target: ${curr}${tpPrice})`);
 
+            const targetForTp = tpPrice > 0 ? tpPrice : setup.takeProfit2Price;
+            const tpThresholdVal = targetForTp * 0.98;
+            const tpConfidence = targetForTp > 0 && currentPrice > 0
+              ? Math.min(100, Math.max(90, Math.round((currentPrice / targetForTp) * 100)))
+              : 98;
+
             const alertPayload: DispatchAlertPayload = {
               symbol: sym,
               companyName: setup.name,
@@ -419,7 +425,7 @@ export class BackgroundAlertScanner {
               targetPrice6M: setup.takeProfit1Price,
               targetPrice1Y: tpPrice,
               stopLossPrice: setup.stopLossPrice,
-              confidenceScore: setup.confidenceScore, // วิเคราะห์หารสาม!
+              confidenceScore: tpConfidence,
               volumeBuyRatio: setup.volumeBuyRatio || 55,
               volumeDelta: 1000000,
               wickRejection: false,
@@ -427,7 +433,7 @@ export class BackgroundAlertScanner {
               alertType: 'TP',
               sellZoneMin: setup.takeProfit1Price,
               sellZoneMax: tpPrice,
-              notes: `🎯 ใกล้ถึงโซน TP (เตือนตั้งแต่ -2%): ราคา ${curr}${currentPrice.toFixed(2)} เข้าใกล้เป้าสถาบัน ${curr}${tpPrice.toFixed(2)}`,
+              notes: `🎯 ใกล้ถึงโซน TP (เตือนตั้งแต่ 98% = ${curr}${tpThresholdVal.toFixed(0)}): ราคา ${curr}${currentPrice.toFixed(2)} เข้าใกล้เป้าสถาบัน ${curr}${tpPrice.toFixed(2)}`,
               multiTimeframe: setup.multiTimeframe
             };
 
@@ -528,6 +534,12 @@ export class BackgroundAlertScanner {
     const isThai = sym.endsWith('.BK') || ['KBANK', 'SCB', 'TISCO', 'BBL', 'PTT', 'CPALL', 'AOT', 'DELTA', 'GULF'].includes(sym);
     const curr = isThai ? '฿' : '$';
 
+    const targetForTp = setup.takeProfit2Price || setup.takeProfit1Price;
+    const tpThresholdVal = targetForTp * 0.98;
+    const tpConfidence = (targetForTp > 0 && setup.currentPrice > 0)
+      ? Math.min(100, Math.max(90, Math.round((setup.currentPrice / targetForTp) * 100)))
+      : 98;
+
     const payload: DispatchAlertPayload = {
       symbol: sym,
       companyName: setup.name,
@@ -537,7 +549,7 @@ export class BackgroundAlertScanner {
       targetPrice6M: setup.takeProfit1Price,
       targetPrice1Y: setup.takeProfit2Price,
       stopLossPrice: setup.stopLossPrice,
-      confidenceScore: setup.confidenceScore, // วิเคราะห์หารสาม!
+      confidenceScore: isTp ? tpConfidence : setup.confidenceScore,
       volumeBuyRatio: setup.volumeBuyRatio || 55,
       volumeDelta: 1000000,
       wickRejection: false,
@@ -546,7 +558,7 @@ export class BackgroundAlertScanner {
       sellZoneMin: setup.takeProfit1Price,
       sellZoneMax: setup.takeProfit2Price,
       notes: isTp
-        ? `🎯 ใกล้ถึงโซน TP (เตือนตั้งแต่ -2%): ราคา ${curr}${setup.currentPrice.toFixed(2)} เข้าใกล้เป้าสถาบัน ${curr}${setup.takeProfit2Price.toFixed(2)}`
+        ? `🎯 ใกล้ถึงโซน TP (เตือนตั้งแต่ 98% = ${curr}${tpThresholdVal.toFixed(0)}): ราคา ${curr}${setup.currentPrice.toFixed(2)} เข้าใกล้เป้าสถาบัน ${curr}${targetForTp.toFixed(2)}`
         : `🟢 จุดเข้าซื้อสถาบัน: ราคา ${curr}${setup.currentPrice.toFixed(2)} ย่อแตะโซน Discount OTE ${curr}${setup.buyZoneMin.toFixed(2)} - ${curr}${setup.buyZoneMax.toFixed(2)}`,
       multiTimeframe: setup.multiTimeframe
     };
