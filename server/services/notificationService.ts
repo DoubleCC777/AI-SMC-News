@@ -610,9 +610,19 @@ export class NotificationService {
 
     // ── 2. Multi-Timeframe Confluence Section (1H ซ้ายสุด • 4H ตรงกลาง • 1D ขวาสุด) ──
     if (hasMultiTf && data.multiTimeframe) {
-      // Sort strictly: 1H (left) -> 4H (middle) -> 1D (right)
-      const tfOrder = ["1H", "4H", "1D"];
-      const sortedItems = [...data.multiTimeframe.items].sort((a, b) => {
+      // Sort strictly: 1H (left) -> 4H (middle) -> 1D (right), with 15M supported
+      const tfOrder = ["1H", "4H", "1D", "15M", "1W"];
+
+      // Deduplicate by normalized timeframe key to never allow duplicate boxes
+      const seenTfs = new Set<string>();
+      const uniqueItems = data.multiTimeframe.items.filter((it) => {
+        const key = it.tf.toUpperCase();
+        if (seenTfs.has(key)) return false;
+        seenTfs.add(key);
+        return true;
+      });
+
+      const sortedItems = [...uniqueItems].sort((a, b) => {
         const ia = tfOrder.indexOf(a.tf.toUpperCase());
         const ib = tfOrder.indexOf(b.tf.toUpperCase());
         return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
@@ -660,12 +670,19 @@ export class NotificationService {
               ? "#fb923c"
               : "#fb7185";
 
+        const tfKey = it.tf.toUpperCase();
         const tfShortLabel =
-          it.tf.toUpperCase() === "1H"
+          tfKey === "1H" || tfKey === "60M"
             ? "1H (1 ชม)"
-            : it.tf.toUpperCase() === "4H"
+            : tfKey === "4H" || tfKey === "240M"
               ? "4H (4 ชม)"
-              : "1D (วัน)";
+              : tfKey === "1D" || tfKey === "D"
+                ? "1D (วัน)"
+                : tfKey === "15M" || tfKey === "15"
+                  ? "15M (15น)"
+                  : tfKey === "1W" || tfKey === "W"
+                    ? "1W (สัปดาห์)"
+                    : it.label || tfKey;
 
         const statusText = isGreen
           ? "เข้าซื้อได้"
