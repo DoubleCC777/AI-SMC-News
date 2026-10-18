@@ -587,32 +587,35 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
           {/* 3-Column Luxury Cyber Cards (No Text Truncation) */}
           <div className="grid grid-cols-1 min-[420px]:grid-cols-3 gap-2 shrink-0">
             {/* Card 1: จุดเข้าซื้อ (Entry) */}
-            <div className="relative overflow-hidden bg-gradient-to-b from-[#062017]/90 via-[#04140e]/95 to-[#020a07] border border-emerald-500/40 hover:border-emerald-400/80 rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.5),0_0_15px_rgba(16,185,129,0.12)] transition-all duration-300 group">
+            <div className="relative overflow-hidden bg-gradient-to-b from-[#062017]/90 via-[#04140e]/95 to-[#020a07] border border-emerald-500/40 hover:border-emerald-400/80 rounded-2xl p-2 sm:p-2.5 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.5),0_0_15px_rgba(16,185,129,0.12)] transition-all duration-300 group">
               <div className="absolute -top-12 -right-12 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl pointer-events-none" />
               <div>
-                <div className="flex items-center justify-between gap-1 mb-1.5">
+                <div className="flex items-center justify-between gap-1 mb-1">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)] shrink-0" />
-                    <span className="text-[11px] font-sans font-black text-emerald-300 uppercase tracking-tight whitespace-nowrap">
-                      จุดเข้าซื้อ (Entry)
+                    <span className="text-[11.5px] font-sans font-black text-emerald-300 tracking-tight whitespace-nowrap">
+                      จุดเข้าซื้อ
                     </span>
                   </div>
                   <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 shrink-0 shadow-sm">
                     Discount
                   </span>
                 </div>
-                <div className="bg-black/40 rounded-xl px-2 py-1.5 border border-emerald-500/20 my-1 shadow-inner">
-                  <div className="text-[9px] text-emerald-400/80 font-sans font-medium flex items-center justify-between">
-                    <span>กรอบช้อนซื้อ OTE</span>
+                <div className="text-[9.5px] font-mono text-emerald-400/80 font-bold mb-1 tracking-tight">
+                  Entry (OTE Zone)
+                </div>
+                <div className="bg-black/50 rounded-xl px-2 py-1.5 border border-emerald-500/20 my-1 shadow-inner text-center">
+                  <div className="text-[8.5px] text-emerald-400/85 font-sans font-bold flex items-center justify-between mb-1 whitespace-nowrap gap-1">
+                    <span>กรอบซื้อ OTE</span>
                     {inBuyZone && (
-                      <span className="text-[8.5px] px-1 py-0.2 rounded bg-emerald-500/30 text-emerald-300 font-bold border border-emerald-500/40">
-                        แตะโซนแล้ว
+                      <span className="text-[7.5px] px-1.5 py-0.2 rounded bg-emerald-500/30 text-emerald-200 font-bold border border-emerald-500/40 shrink-0">
+                        ● แตะโซน
                       </span>
                     )}
                   </div>
-                  <div className="font-mono text-[12.5px] min-[360px]:text-[13px] font-black text-emerald-300 tracking-tight whitespace-nowrap flex items-center justify-between pt-0.5 drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]">
+                  <div className="font-mono text-[9.5px] min-[440px]:text-[10px] font-black text-emerald-300 tracking-tight whitespace-nowrap drop-shadow-[0_0_8px_rgba(52,211,153,0.3)] py-1 px-1 bg-emerald-950/40 rounded-lg border border-emerald-500/20 flex items-center justify-center gap-1.5">
                     <span>{curr}{entryMin.toFixed(2)}</span>
-                    <span className="text-emerald-500/60 text-[10px] font-sans font-bold">ถึง</span>
+                    <span className="text-emerald-500/50 font-sans font-normal">–</span>
                     <span>{curr}{entryMax.toFixed(2)}</span>
                   </div>
                 </div>
@@ -634,13 +637,13 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
             </div>
 
             {/* Card 2: จุดคัท (SL) */}
-            <div className="relative overflow-hidden bg-gradient-to-b from-[#240a12]/90 via-[#16060b]/95 to-[#0b0305] border border-rose-500/40 hover:border-rose-400/80 rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.5),0_0_15px_rgba(244,63,94,0.12)] transition-all duration-300 group">
+            <div className="relative overflow-hidden bg-gradient-to-b from-[#240a12]/90 via-[#16060b]/95 to-[#0b0305] border border-rose-500/40 hover:border-rose-400/80 rounded-2xl p-2 sm:p-2.5 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.5),0_0_15px_rgba(244,63,94,0.12)] transition-all duration-300 group">
               <div className="absolute -top-12 -right-12 w-24 h-24 bg-rose-500/10 rounded-full blur-xl pointer-events-none" />
               <div>
-                <div className="flex items-center justify-between gap-1 mb-1.5">
+                <div className="flex items-center justify-between gap-1 mb-1">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.9)] shrink-0" />
-                    <span className="text-[11px] font-sans font-black text-rose-300 uppercase tracking-tight whitespace-nowrap">
+                    <span className="text-[11.5px] font-sans font-black text-rose-300 tracking-tight whitespace-nowrap">
                       จุดคัท (SL)
                     </span>
                   </div>
@@ -648,9 +651,12 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
                     {slLossPct}%
                   </span>
                 </div>
-                <div className="bg-black/40 rounded-xl px-2 py-1.5 border border-rose-500/20 my-1 shadow-inner">
-                  <div className="text-[9px] text-rose-400/80 font-sans font-medium">ราคาตัดขาดทุน (SL)</div>
-                  <div className="font-mono text-[14px] font-black text-rose-300 tracking-tight whitespace-nowrap drop-shadow-[0_0_8px_rgba(244,63,94,0.3)] pt-0.5">
+                <div className="text-[9.5px] font-mono text-rose-400/80 font-bold mb-1 tracking-tight">
+                  Stop Loss Plan
+                </div>
+                <div className="bg-black/50 rounded-xl px-2 py-1.5 border border-rose-500/20 my-1 shadow-inner text-center">
+                  <div className="text-[8.5px] text-rose-400/80 font-sans font-bold mb-1">ราคาตัดขาดทุน (SL)</div>
+                  <div className="font-mono text-[13px] font-black text-rose-300 tracking-tight whitespace-nowrap drop-shadow-[0_0_8px_rgba(244,63,94,0.3)] py-0.5 bg-rose-950/40 rounded-lg border border-rose-500/20">
                     {curr}{slPrice.toFixed(2)}
                   </div>
                 </div>
@@ -672,23 +678,26 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
             </div>
 
             {/* Card 3: จุดทำกำไร (TP) พร้อมสถานะเตือนตั้งแต่ -2% */}
-            <div className="relative overflow-hidden bg-gradient-to-b from-[#0a1e28]/90 via-[#06131a]/95 to-[#020a0e] border border-cyan-500/40 hover:border-cyan-400/80 rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.5),0_0_15px_rgba(6,182,212,0.12)] transition-all duration-300 group">
+            <div className="relative overflow-hidden bg-gradient-to-b from-[#0a1e28]/90 via-[#06131a]/95 to-[#020a0e] border border-cyan-500/40 hover:border-cyan-400/80 rounded-2xl p-2 sm:p-2.5 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.5),0_0_15px_rgba(6,182,212,0.12)] transition-all duration-300 group">
               <div className="absolute -top-12 -right-12 w-24 h-24 bg-cyan-500/10 rounded-full blur-xl pointer-events-none" />
               <div>
-                <div className="flex items-center justify-between gap-1 mb-1.5">
+                <div className="flex items-center justify-between gap-1 mb-1">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.9)] shrink-0" />
-                    <span className="text-[11px] font-sans font-black text-cyan-300 uppercase tracking-tight whitespace-nowrap">
-                      จุดทำกำไร (TP)
+                    <span className="text-[11.5px] font-sans font-black text-cyan-300 tracking-tight whitespace-nowrap">
+                      จุดทำกำไร
                     </span>
                   </div>
                   <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 shrink-0 shadow-sm font-bold">
                     +{tpGainPct}%
                   </span>
                 </div>
-                <div className="bg-black/40 rounded-xl px-2 py-1.5 border border-cyan-500/20 my-1 shadow-inner">
-                  <div className="text-[9px] text-cyan-400/80 font-sans font-medium">เป้าหมายหลัก (TP2)</div>
-                  <div className="font-mono text-[14px] font-black text-cyan-300 tracking-tight whitespace-nowrap drop-shadow-[0_0_8px_rgba(6,182,212,0.3)] pt-0.5">
+                <div className="text-[9.5px] font-mono text-cyan-400/80 font-bold mb-1 tracking-tight">
+                  Take Profit (TP)
+                </div>
+                <div className="bg-black/50 rounded-xl px-2 py-1.5 border border-cyan-500/20 my-1 shadow-inner text-center">
+                  <div className="text-[8.5px] text-cyan-400/80 font-sans font-bold mb-1">เป้าหมายหลัก (TP2)</div>
+                  <div className="font-mono text-[13px] font-black text-cyan-300 tracking-tight whitespace-nowrap drop-shadow-[0_0_8px_rgba(6,182,212,0.3)] py-0.5 bg-cyan-950/40 rounded-lg border border-cyan-500/20">
                     {curr}{tpPrice.toFixed(2)}
                   </div>
                 </div>
