@@ -22,7 +22,7 @@ export interface DispatchAlertPayload {
   wickRejection: boolean;
   timeframe: string;
   notes?: string;
-  alertType?: 'BUY' | 'SELL_HH';
+  alertType?: 'BUY' | 'TP' | 'SELL_HH';
   sellZoneMin?: number;
   sellZoneMax?: number;
   multiTimeframe?: {
@@ -48,7 +48,7 @@ export class NotificationService {
       );
     }
 
-    const isSellHh = data.alertType === "SELL_HH";
+    const isTpAlert = data.alertType === "TP" || data.alertType === "SELL_HH";
     const sellMin = data.sellZoneMin || data.targetPrice1Y;
     const sellMax = data.sellZoneMax || (sellMin * 1.06);
 
@@ -61,7 +61,7 @@ export class NotificationService {
             ? "🟠 ควรรอย่อ ห้ามไล่ราคา"
             : "🔴 ไม่ควรเข้า เสี่ยงสูง";
 
-    const fields: any[] = isSellHh
+    const fields: any[] = isTpAlert
       ? [
           {
             name: "💵 ราคาปัจจุบัน",
@@ -69,18 +69,18 @@ export class NotificationService {
             inline: true,
           },
           {
-            name: "🎯 กรอบขายใกล้ HH",
+            name: "🎯 โซน TP (Take Profit)",
             value: `$${sellMin.toFixed(2)} – $${sellMax.toFixed(2)}`,
             inline: true,
           },
           {
-            name: "⚡ ไม้ 1 (ดักใกล้ HH)",
-            value: `**$${sellMin.toFixed(2)}** (ขาย 50%)`,
+            name: "⚡ ไม้ 1 (TP 1)",
+            value: `**$${sellMin.toFixed(2)}** (แบ่งขาย 50%)`,
             inline: true,
           },
           {
-            name: "🏆 ไม้ 2 (ยอด HH สูงสุด)",
-            value: `**$${sellMax.toFixed(2)}** (ขาย 50%)`,
+            name: "🏆 ไม้ 2 (TP 2)",
+            value: `**$${sellMax.toFixed(2)}** (ขายทำกำไร 50%)`,
             inline: true,
           },
           {
@@ -90,7 +90,7 @@ export class NotificationService {
           },
           {
             name: "💡 คำแนะนำกลยุทธ์",
-            value: `ทยอยแบ่งขายล็อกกำไรตามแผน Smart Money ก่อนสถาบันเทขายดักเด้งลงแรง`,
+            value: `ราคาเข้าใกล้โซน TP ตั้งแต่ -2% แนะนำทยอยขายทำกำไรตามแผน Smart Money`,
             inline: true,
           },
         ]
@@ -139,16 +139,16 @@ export class NotificationService {
     }
 
     const payload = {
-      username: isSellHh ? "AI·SMC Take Profit Alert" : "AI·SMC Institutional Alert",
+      username: isTpAlert ? "AI·SMC Take Profit Alert" : "AI·SMC Institutional Alert",
       avatar_url: "https://cdn-icons-png.flaticon.com/512/3314/3314482.png",
       embeds: [
         {
-          title: isSellHh
-            ? `🎯 [TAKE PROFIT ALERT] ${data.symbol} (${data.companyName}) ราคาเข้าใกล้จุด Higher High (HH)!`
+          title: isTpAlert
+            ? `🎯 [TAKE PROFIT ALERT] ${data.symbol} (${data.companyName}) ใกล้ถึงโซน TP แล้ว! (เตือนตั้งแต่ -2%)`
             : `🟢 [BUY ALERT] ${data.symbol} (${data.companyName}) เข้าสู่จุดซื้อสะสมสถาบัน!`,
-          color: isSellHh ? 0xf59e0b : 0x10b981,
-          description: isSellHh
-            ? `ราคาขยับขึ้นมาใกล้เป้าหมายยอดสวิง Higher High (HH) แนะนำแบ่งไม้ขายทำกำไรที่ราคานั้นๆ ตามแผนสถาบัน`
+          color: isTpAlert ? 0xf59e0b : 0x10b981,
+          description: isTpAlert
+            ? `ราคาขยับขึ้นมาใกล้เป้าหมายทำกำไร Take Profit (TP) แนะนำแบ่งไม้ขายทำกำไรที่ราคานั้นๆ (เตือนตั้งแต่ -2% ก่อนถึง)`
             : `ระบบตรวจพบสัญญาณซื้อตามกรอบ Smart Money Concepts พร้อมวิเคราะห์ผสาน 3 Timeframes`,
           fields,
           footer: {
@@ -185,7 +185,7 @@ export class NotificationService {
       throw new Error("กรุณาระบุ Telegram Bot Token และ Chat ID ให้ครบถ้วน");
     }
 
-    const isSellHh = data.alertType === "SELL_HH";
+    const isTpAlert = data.alertType === "TP" || data.alertType === "SELL_HH";
     const sellMin = data.sellZoneMin || data.targetPrice1Y;
     const sellMax = data.sellZoneMax || (sellMin * 1.06);
 
@@ -198,18 +198,18 @@ export class NotificationService {
             ? "🟠 ควรรอย่อ ห้ามไล่ราคา"
             : "🔴 ไม่ควรเข้า เสี่ยงสูง";
 
-    const messageLines = isSellHh
+    const messageLines = isTpAlert
       ? [
-          `<b>🎯 [AI·SMC TAKE PROFIT ALERT] ${data.symbol} เข้าใกล้จุด Higher High (HH)!</b>`,
+          `<b>🎯 [AI·SMC TAKE PROFIT ALERT] ${data.symbol} ใกล้ถึงโซน TP แล้ว! (เตือนตั้งแต่ -2%)</b>`,
           ``,
           `🏢 หุ้น: <b>${data.symbol}</b> (${data.companyName})`,
           `💵 ราคาปัจจุบัน: <b>$${data.currentPrice.toFixed(2)}</b>`,
-          `🎯 กรอบขายใกล้ HH: <b>$${sellMin.toFixed(2)} – $${sellMax.toFixed(2)}</b>`,
-          `⚡ ไม้ 1 (ดักใกล้ HH): <b>$${sellMin.toFixed(2)}</b> (แบ่งขาย 50%)`,
-          `🏆 ไม้ 2 (ยอด HH สูงสุด): <b>$${sellMax.toFixed(2)}</b> (ขาย 50%)`,
+          `🎯 โซน TP (Take Profit): <b>$${sellMin.toFixed(2)} – $${sellMax.toFixed(2)}</b>`,
+          `⚡ ไม้ 1 (TP 1): <b>$${sellMin.toFixed(2)}</b> (แบ่งขาย 50%)`,
+          `🏆 ไม้ 2 (TP 2): <b>$${sellMax.toFixed(2)}</b> (ขายทำกำไร 50%)`,
           `🛒 กรอบช้อนซื้อเดิม: $${data.buyZoneMin.toFixed(2)} – $${data.buyZoneMax.toFixed(2)}`,
           ``,
-          `<i>💡 แนะนำแบ่งไม้ขายทำกำไรที่ราคานี้ตามแผน Smart Money Concepts เพื่อล็อกกำไรสูงสุด</i>`,
+          `<i>💡 แนะนำแบ่งไม้ขายทำกำไรที่ราคานี้ตามแผน Smart Money Concepts (เตือนตั้งแต่ -2% ก่อนถึง)</i>`,
           `<i>⚡ Smart Money Concepts • AI Confluence Engine</i>`,
         ]
       : [
@@ -222,7 +222,7 @@ export class NotificationService {
           `📊 Volume Flow: แรงซื้อ <b>${data.volumeBuyRatio}%</b> (Delta: ${(data.volumeDelta / 1e6).toFixed(1)}M)`,
         ];
 
-    if (!isSellHh && data.multiTimeframe && data.multiTimeframe.items.length > 0) {
+    if (!isTpAlert && data.multiTimeframe && data.multiTimeframe.items.length > 0) {
       messageLines.push(``, `<b>📊 วิเคราะห์ผสาน 3 Timeframes:</b>`);
       data.multiTimeframe.items.forEach((it) => {
         messageLines.push(`• <b>${it.tf}</b>: ${it.score}% (${it.badge})`);
@@ -230,7 +230,7 @@ export class NotificationService {
       messageLines.push(`<i>${data.multiTimeframe.alignmentText}</i>`);
     }
 
-    if (!isSellHh) {
+    if (!isTpAlert) {
       messageLines.push(
         ``,
         `🎯 โซนขาย 1Y (แรงขายสูง): <b>$${data.targetPrice1Y.toFixed(2)}</b>`,
@@ -274,22 +274,22 @@ export class NotificationService {
       throw new Error("กรุณาระบุ LINE Notify Token");
     }
 
-    const isSellHh = data.alertType === "SELL_HH";
+    const isTpAlert = data.alertType === "TP" || data.alertType === "SELL_HH";
     const sellMin = data.sellZoneMin || data.targetPrice1Y;
     const sellMax = data.sellZoneMax || (sellMin * 1.06);
 
     const tierLabel =
       data.confidenceScore >= 75 ? "เข้าซื้อได้ โอกาสกำไรสูง" : "ทยอยสะสม";
 
-    const messageLines = isSellHh
+    const messageLines = isTpAlert
       ? [
           `\n🎯 [AI-SMC TAKE PROFIT ALERT]`,
           `หุ้น: ${data.symbol} (${data.companyName})`,
           `ราคาปัจจุบัน: $${data.currentPrice.toFixed(2)}`,
-          `กรอบขายใกล้ HH: $${sellMin.toFixed(2)} - $${sellMax.toFixed(2)}`,
-          `ไม้ 1 (ดักใกล้ HH): $${sellMin.toFixed(2)} (ขาย 50%)`,
-          `ไม้ 2 (ยอด HH): $${sellMax.toFixed(2)} (ขาย 50%)`,
-          `คำแนะนำ: ทยอยล็อกกำไรตามแผนสถาบัน`,
+          `โซน TP: $${sellMin.toFixed(2)} - $${sellMax.toFixed(2)}`,
+          `ไม้ 1 (TP 1): $${sellMin.toFixed(2)} (ขาย 50%)`,
+          `ไม้ 2 (TP 2): $${sellMax.toFixed(2)} (ขาย 50%)`,
+          `คำแนะนำ: เข้าใกล้โซน TP ตั้งแต่ -2% ทยอยล็อกกำไรตามแผน`,
         ]
       : [
           `\n🟢 [AI-SMC BUY ALERT]`,
@@ -300,14 +300,14 @@ export class NotificationService {
           `วอลุ่มซื้อ: ${data.volumeBuyRatio}%`,
         ];
 
-    if (!isSellHh && data.multiTimeframe && data.multiTimeframe.items.length > 0) {
+    if (!isTpAlert && data.multiTimeframe && data.multiTimeframe.items.length > 0) {
       const tfSummary = data.multiTimeframe.items
         .map((it) => `${it.tf}:${it.score}%`)
         .join(" | ");
       messageLines.push(`3-TF: ${tfSummary}`);
     }
 
-    if (!isSellHh) {
+    if (!isTpAlert) {
       messageLines.push(
         `เป้าหมาย 1Y (แรงขายสูง): $${data.targetPrice1Y.toFixed(2)}`,
         `ตัดขาดทุน: $${data.stopLossPrice.toFixed(2)}`,
@@ -349,7 +349,7 @@ export class NotificationService {
       );
     }
 
-    const isSellHh = data.alertType === "SELL_HH";
+    const isTpAlert = data.alertType === "TP" || data.alertType === "SELL_HH";
     const sellMin = data.sellZoneMin || data.targetPrice1Y;
     const sellMax = data.sellZoneMax || (sellMin * 1.06);
 
@@ -362,8 +362,8 @@ export class NotificationService {
             ? "ควรรอย่อ ห้ามไล่ราคา"
             : "ไม่ควรเข้า เสี่ยงสูง";
 
-    const tierLabelShort = isSellHh
-      ? "เตือนขายใกล้ HH"
+    const tierLabelShort = isTpAlert
+      ? "ใกล้ถึงโซน TP"
       : data.confidenceScore >= 75
         ? "โอกาสกำไรสูง"
         : data.confidenceScore >= 65
@@ -372,7 +372,7 @@ export class NotificationService {
             ? "ควรรอย่อ"
             : "ไม่ควรเข้า";
 
-    const tierColor = isSellHh
+    const tierColor = isTpAlert
       ? "#f59e0b"
       : data.confidenceScore >= 75
         ? "#34d399"
@@ -425,7 +425,7 @@ export class NotificationService {
     const tfPillText =
       hasMultiTf || is15m ? "3-TF CONFLUENCE" : data.timeframe.toUpperCase();
 
-    const statusPillBg = isSellHh
+    const statusPillBg = isTpAlert
       ? "#78350f"
       : data.confidenceScore >= 75
         ? "#064e3b"
@@ -435,7 +435,7 @@ export class NotificationService {
             ? "#451a03"
             : "#4c0519";
 
-    const statusPillColor = isSellHh
+    const statusPillColor = isTpAlert
       ? "#fde047"
       : data.confidenceScore >= 75
         ? "#6ee7b7"
@@ -445,8 +445,8 @@ export class NotificationService {
             ? "#fdba74"
             : "#fb7185";
 
-    const statusPillText = isSellHh
-      ? "🎯 ใกล้จุด HH"
+    const statusPillText = isTpAlert
+      ? "🎯 ใกล้ถึง TP"
       : data.confidenceScore >= 75
         ? "● เข้าซื้อได้"
         : data.confidenceScore >= 65
@@ -497,19 +497,19 @@ export class NotificationService {
             contents: [
               {
                 type: "text",
-                text: isSellHh ? "🎯 จุดขายใกล้ HH" : "💰 โซนช้อนซื้อ",
+                text: isTpAlert ? "🎯 โซน TP" : "💰 โซนช้อนซื้อ",
                 size: "xs",
                 color: "#94a3b8",
                 flex: 4,
               },
               {
                 type: "text",
-                text: isSellHh
+                text: isTpAlert
                   ? `${curr}${sellMin.toFixed(2)} – ${curr}${sellMax.toFixed(2)}`
                   : `${curr}${data.buyZoneMin.toFixed(2)} – ${curr}${data.buyZoneMax.toFixed(2)}`,
                 size: "xs",
                 weight: "bold",
-                color: isSellHh ? "#fbbf24" : "#34d399",
+                color: isTpAlert ? "#fbbf24" : "#34d399",
                 align: "end",
                 flex: 7,
               },

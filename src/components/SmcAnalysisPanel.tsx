@@ -222,14 +222,14 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
     Math.max(0, ((keyLevels.currentPrice - premiumDiscount.low) / totalRange) * 100)
   );
 
-  // คำนวณจุดขายใกล้ HH (Higher High) และระยะห่าง
-  const sellMinPrice = simpleTradePlan?.sellZone?.minPrice ?? simpleTradePlan?.sellTargets?.target1Year?.price ?? 0;
-  const sellMaxPrice = simpleTradePlan?.sellZone?.maxPrice ?? Number((sellMinPrice * 1.06).toFixed(2));
-  const distToHhPercent = sellMinPrice > 0 && keyLevels?.currentPrice
-    ? Number((((sellMinPrice - keyLevels.currentPrice) / keyLevels.currentPrice) * 100).toFixed(1))
+  // คำนวณจุดขาย TP (Take Profit) และระยะห่าง (เตือนตั้งแต่ -2%)
+  const tpMinPrice = simpleTradePlan?.sellZone?.minPrice ?? simpleTradePlan?.sellTargets?.target1Year?.price ?? 0;
+  const tpMaxPrice = simpleTradePlan?.sellZone?.maxPrice ?? Number((tpMinPrice * 1.06).toFixed(2));
+  const distToTpPercent = tpMinPrice > 0 && keyLevels?.currentPrice
+    ? Number((((tpMinPrice - keyLevels.currentPrice) / keyLevels.currentPrice) * 100).toFixed(1))
     : 0;
-  const isReachedHh = Boolean(keyLevels?.currentPrice && sellMinPrice > 0 && keyLevels.currentPrice >= sellMinPrice);
-  const isNearHh = Boolean(!isReachedHh && sellMinPrice > 0 && distToHhPercent <= 2.5);
+  const isReachedTp = Boolean(keyLevels?.currentPrice && tpMinPrice > 0 && keyLevels.currentPrice >= tpMinPrice);
+  const isNearTp = Boolean(!isReachedTp && tpMinPrice > 0 && distToTpPercent <= 2.0);
 
   return (
     <div className="bg-[#070a12] border border-white/[0.08] rounded-2xl p-3.5 sm:p-4 flex flex-col h-full overflow-y-auto space-y-3.5 no-scrollbar shadow-2xl shadow-black/50 select-none min-w-[340px] sm:min-w-[380px] shrink-0">
@@ -547,7 +547,7 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
               </div>
             </div>
 
-            {/* Card 2: จุดขายใกล้ HH (Higher High) พร้อมสถานะตรวจจับแจ้งเตือน */}
+            {/* Card 2: โซน TP (Take Profit) พร้อมสถานะเตือนตั้งแต่ -2% */}
             <div className="relative overflow-hidden bg-gradient-to-b from-[#191408] via-[#140f06] to-[#0a0803] border border-amber-500/30 hover:border-amber-500/50 rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.35)] transition-all duration-300 group">
               <div className="absolute -top-12 -right-12 w-24 h-24 bg-amber-500/10 rounded-full blur-xl pointer-events-none" />
               <div>
@@ -556,50 +556,50 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
                     <span className="w-5 h-5 rounded-md bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-[11px] shadow-[0_0_6px_rgba(245,158,11,0.25)] shrink-0">
                       🎯
                     </span>
-                    <span className="text-[11.5px] font-sans font-extrabold text-amber-300 uppercase tracking-tight whitespace-nowrap">
-                      จุดขายใกล้ HH
+                    <span className="text-[12px] font-sans font-extrabold text-amber-300 uppercase tracking-tight whitespace-nowrap">
+                      โซน TP
                     </span>
                   </div>
-                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-emerald-300 shrink-0">
+                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-emerald-300 shrink-0 ml-auto">
                     +{simpleTradePlan.sellTargets.target1Year.gainPercent}%
                   </span>
                 </div>
                 <div className="font-mono text-[12px] min-[360px]:text-[12.5px] sm:text-[13px] font-black text-amber-300 tracking-tighter whitespace-nowrap drop-shadow-[0_0_8px_rgba(245,158,11,0.25)]">
-                  {curr}{sellMinPrice.toFixed(2)} - {curr}{sellMaxPrice.toFixed(2)}
+                  {curr}{tpMinPrice.toFixed(2)} - {curr}{tpMaxPrice.toFixed(2)}
                 </div>
-                <div className="text-[9px] font-mono mt-0.5 flex items-center gap-1 truncate">
-                  {isReachedHh ? (
+                <div className="text-[9px] font-mono mt-0.5 flex items-center gap-1">
+                  {isReachedTp ? (
                     <>
                       <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping inline-block shrink-0" />
-                      <span className="text-rose-300 font-bold whitespace-nowrap">🚨 ถึงจุด HH แล้ว! แนะนำทยอยขาย</span>
+                      <span className="text-rose-300 font-bold whitespace-nowrap">🚨 ถึงโซน TP แล้ว! แนะนำขาย</span>
                     </>
-                  ) : isNearHh ? (
+                  ) : isNearTp ? (
                     <>
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block shrink-0" />
-                      <span className="text-amber-300 font-bold whitespace-nowrap">⚠️ ใกล้จุด HH แล้ว! แนะนำเตรียมขาย</span>
+                      <span className="text-amber-300 font-bold whitespace-nowrap">⚠️ ใกล้ถึง TP แล้ว! (เตือนที่ -2%)</span>
                     </>
                   ) : (
                     <>
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-400/80 inline-block shrink-0" />
-                      <span className="text-amber-400/90 whitespace-nowrap">ห่างจุด HH อีก +{distToHhPercent.toFixed(1)}% (เตือนเมื่อถึง)</span>
+                      <span className="text-amber-400/90 whitespace-nowrap">ห่างโซน TP อีก +{distToTpPercent.toFixed(1)}%</span>
                     </>
                   )}
                 </div>
               </div>
               <div className="mt-2.5 pt-2 border-t border-amber-500/15 space-y-1 text-[10.5px] font-mono">
                 <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-amber-500/[0.05] border border-amber-500/15">
-                  <span className="text-slate-400 flex items-center gap-1 whitespace-nowrap">
-                    <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-amber-500/20 text-amber-300">ไม้ 1</span>
-                    <span className="text-[9px] text-slate-400">ดักใกล้ HH</span>
-                  </span>
-                  <span className="text-amber-300 font-bold whitespace-nowrap">{curr}{sellMinPrice.toFixed(2)}</span>
+                  <div className="flex items-center gap-1 min-w-0">
+                    <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 shrink-0">ไม้ 1</span>
+                    <span className="text-[9px] text-slate-400 truncate">TP 1</span>
+                  </div>
+                  <span className="text-amber-300 font-bold whitespace-nowrap ml-1 shrink-0">{curr}{tpMinPrice.toFixed(2)}</span>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-amber-500/[0.05] border border-amber-500/15">
-                  <span className="text-slate-400 flex items-center gap-1 whitespace-nowrap">
-                    <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-amber-500/20 text-amber-300">ไม้ 2</span>
-                    <span className="text-[9px] text-slate-400">ยอด HH</span>
-                  </span>
-                  <span className="text-amber-300 font-bold whitespace-nowrap">{curr}{sellMaxPrice.toFixed(2)}</span>
+                  <div className="flex items-center gap-1 min-w-0">
+                    <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 shrink-0">ไม้ 2</span>
+                    <span className="text-[9px] text-slate-400 truncate">TP 2</span>
+                  </div>
+                  <span className="text-amber-300 font-bold whitespace-nowrap ml-1 shrink-0">{curr}{tpMaxPrice.toFixed(2)}</span>
                 </div>
               </div>
             </div>

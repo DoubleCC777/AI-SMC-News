@@ -229,14 +229,14 @@ class AlertManager {
       netDelta: 0
     };
 
-    // ── 1. EVALUATE SELL / TAKE PROFIT ALERT (เข้าใกล้หรือแตะจุด Higher High - HH) ──
-    // ตรวจจับเมื่อราคาขยับขึ้นมาใกล้กรอบขายใกล้ HH (ตั้งแต่ 98.5% ของ sellMin ขึ้นไป)
-    const isNearHhSellZone = sellMin > 0 && currentPrice >= (sellMin * 0.985);
-    const lastSellHhTriggered = this.lastAlertsBySymbol[`${symbol}-SELL_HH`] || 0;
+    // ── 1. EVALUATE TAKE PROFIT (TP) ALERT (เตือนเมื่อใกล้ถึงโซน TP ตั้งแต่ -2%) ──
+    // เช่น หาก TP อยู่ที่ 287.20 ระบบจะเริ่มแจ้งเตือนตั้งแต่ $281.45 (287.20 * 0.98 หรือระยะห่าง <= 2%)
+    const isNearTpZone = sellMin > 0 && currentPrice >= (sellMin * 0.98);
+    const lastTpTriggered = this.lastAlertsBySymbol[`${symbol}-TP`] || this.lastAlertsBySymbol[`${symbol}-SELL_HH`] || 0;
 
-    if (isNearHhSellZone && (now - lastSellHhTriggered >= cooldownMs)) {
+    if (isNearTpZone && (now - lastTpTriggered >= cooldownMs)) {
       const alertItem: BuyAlertItem = {
-        id: `alert-sell-${symbol}-${now}`,
+        id: `alert-tp-${symbol}-${now}`,
         timestamp: now,
         symbol,
         companyName: data.name || symbol,
@@ -251,15 +251,16 @@ class AlertManager {
         volumeDelta: volumeFlow.netDelta,
         wickRejection: false,
         timeframe: '3-TF CONFLUENCE (1D/4H/1H)',
-        alertType: 'SELL_HH',
+        alertType: 'TP',
         sellZoneMin: sellMin,
         sellZoneMax: sellMax,
-        title: `🎯 จุดขายใกล้ HH: ${symbol} ราคา $${currentPrice.toFixed(2)} แตะกรอบทำกำไร $${sellMin.toFixed(2)}–$${sellMax.toFixed(2)}`,
-        message: `ราคา $${currentPrice.toFixed(2)} เข้าใกล้จุด Higher High (HH) สูงสุด แนะนำแบ่งไม้ขายทำกำไร ไม้ 1 ที่ $${sellMin.toFixed(2)} (ดักใกล้ HH) และ ไม้ 2 ที่ $${sellMax.toFixed(2)} (ยอด HH)`,
+        title: `🎯 ใกล้ถึงโซน TP: ${symbol} ราคา $${currentPrice.toFixed(2)} เข้าใกล้เป้า $${sellMin.toFixed(2)} (เตือนตั้งแต่ -2%)`,
+        message: `ราคา $${currentPrice.toFixed(2)} เข้าใกล้โซนทำกำไร Take Profit (TP) แนะนำเตรียมทยอยขาย ไม้ 1 ที่ $${sellMin.toFixed(2)} (TP 1) และ ไม้ 2 ที่ $${sellMax.toFixed(2)} (TP 2)`,
         read: false,
         multiTimeframe
       };
 
+      this.lastAlertsBySymbol[`${symbol}-TP`] = now;
       this.lastAlertsBySymbol[`${symbol}-SELL_HH`] = now;
       localStorage.setItem(LAST_ALERT_TIMESTAMP_KEY, JSON.stringify(this.lastAlertsBySymbol));
       this.alerts = [alertItem, ...this.alerts].slice(0, 30);
