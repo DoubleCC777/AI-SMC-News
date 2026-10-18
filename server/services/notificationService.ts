@@ -146,7 +146,7 @@ export class NotificationService {
           title: isTpAlert
             ? `🎯 [TAKE PROFIT ALERT] ${data.symbol} (${data.companyName}) ใกล้ถึงโซน TP แล้ว! (เตือนตั้งแต่ -2%)`
             : `🟢 [BUY ALERT] ${data.symbol} (${data.companyName}) เข้าสู่จุดซื้อสะสมสถาบัน!`,
-          color: isTpAlert ? 0xf59e0b : 0x10b981,
+          color: isTpAlert ? 0xc084fc : 0x10b981,
           description: isTpAlert
             ? `ราคาขยับขึ้นมาใกล้เป้าหมายทำกำไร Take Profit (TP) แนะนำแบ่งไม้ขายทำกำไรที่ราคานั้นๆ (เตือนตั้งแต่ -2% ก่อนถึง)`
             : `ระบบตรวจพบสัญญาณซื้อตามกรอบ Smart Money Concepts พร้อมวิเคราะห์ผสาน 3 Timeframes`,
@@ -373,7 +373,7 @@ export class NotificationService {
             : "ไม่ควรเข้า";
 
     const tierColor = isTpAlert
-      ? "#f59e0b"
+      ? "#c084fc"
       : data.confidenceScore >= 75
         ? "#34d399"
         : data.confidenceScore >= 65
@@ -423,24 +423,34 @@ export class NotificationService {
       hasMultiTf || is15m ? "3-TF CONFLUENCE" : data.timeframe.toUpperCase();
 
     const statusPillBg = isTpAlert
-      ? "#78350f"
+      ? "#240c42"
       : data.confidenceScore >= 75
-        ? "#064e3b"
+        ? "#022c22"
         : data.confidenceScore >= 65
-          ? "#713f12"
+          ? "#052e16"
           : data.confidenceScore >= 51
-            ? "#451a03"
-            : "#4c0519";
+            ? "#2a1502"
+            : "#3b0712";
+
+    const statusPillBorder = isTpAlert
+      ? "#c084fc"
+      : data.confidenceScore >= 75
+        ? "#10b981"
+        : data.confidenceScore >= 65
+          ? "#34d399"
+          : data.confidenceScore >= 51
+            ? "#f59e0b"
+            : "#f43f5e";
 
     const statusPillColor = isTpAlert
-      ? "#fde047"
+      ? "#f5d0fe"
       : data.confidenceScore >= 75
         ? "#6ee7b7"
         : data.confidenceScore >= 65
-          ? "#fde047"
+          ? "#a7f3d0"
           : data.confidenceScore >= 51
-            ? "#fdba74"
-            : "#fb7185";
+            ? "#fde047"
+            : "#fca5a5";
 
     const statusPillText = isTpAlert
       ? "🎯 ใกล้ถึง TP"
@@ -829,7 +839,9 @@ export class NotificationService {
                 type: "box",
                 layout: "horizontal",
                 backgroundColor: statusPillBg,
-                cornerRadius: "6px",
+                borderColor: statusPillBorder,
+                borderWidth: "1.5px",
+                cornerRadius: "99px",
                 width: "135px",
                 height: "24px",
                 justifyContent: "center",
@@ -849,9 +861,11 @@ export class NotificationService {
               {
                 type: "box",
                 layout: "horizontal",
-                backgroundColor: "#1e293b",
-                cornerRadius: "6px",
-                width: "115px",
+                backgroundColor: "#0b1329",
+                borderColor: "#334155",
+                borderWidth: "1px",
+                cornerRadius: "99px",
+                width: "125px",
                 height: "24px",
                 justifyContent: "center",
                 alignItems: "center",
@@ -955,7 +969,9 @@ export class NotificationService {
         messages: [
           {
             type: "flex",
-            altText: `${data.symbol} ถึงจุดเข้าซื้อสถาบันแล้ว! ($${data.currentPrice.toFixed(2)}) • AI ${data.confidenceScore}% (${tierLabel})`,
+            altText: isTpAlert
+              ? `🎯 [TP ALERT] ${data.symbol} ใกล้ถึงเป้าทำกำไร! ($${data.currentPrice.toFixed(2)})`
+              : `${data.symbol} ถึงจุดเข้าซื้อสถาบันแล้ว! ($${data.currentPrice.toFixed(2)}) • AI ${data.confidenceScore}% (${tierLabel})`,
             contents: flexBubble,
           },
         ],
