@@ -1,0 +1,17 @@
+{
+  "soundEnabled": true,
+  "inAppEnabled": true,
+  "discordEnabled": false,
+  "discordWebhookUrl": "",
+  "telegramEnabled": false,
+  "telegramBotToken": "",
+  "telegramChatId": "",
+  "lineEnabled": false,
+  "lineNotifyToken": "",
+  "lineBotEnabled": false,
+  "lineBotChannelToken": "YOUR_LINE_BOT_CHANNEL_ACCESS_TOKEN",
+  "lineBotUserId": "YOUR_LINE_USER_ID",
+  "minConfidenceScore": 75,
+  "requireVolumeConfirmation": true,
+  "requireWickConfirmation": false
+}

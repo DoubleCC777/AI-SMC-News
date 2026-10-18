@@ -43,3 +43,4 @@ Thumbs.db
 # Data directories generated at runtime
 server/data/*.json
 !server/data/.gitkeep
+!server/data/alertConfig.example.json
