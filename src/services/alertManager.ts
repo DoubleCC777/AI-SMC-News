@@ -465,11 +465,24 @@ class AlertManager {
       return null;
     }
 
-    const institutionalData = multiTfData?.['1d']
+    const symbol = data.symbol.replace(/\.BK$/i, '').toUpperCase();
+    const currentPrice = data.summary.keyLevels.currentPrice;
+
+    // Cross-stock data guard: Ensure multiTfData actually belongs to THIS stock
+    if (multiTfData) {
+      for (const tf of ['1d', '4h', '1h'] as const) {
+        const item = multiTfData[tf];
+        if (item && item.symbol.replace(/\.BK$/i, '').toUpperCase() !== symbol) {
+          return null; // Cross-stock data mismatch! Wait for matching data!
+        }
+      }
+    }
+
+    const institutionalData = (multiTfData?.['1d']?.symbol.replace(/\.BK$/i, '').toUpperCase() === symbol ? multiTfData['1d'] : null)
       || (data.timeframe === '1d' ? data : null)
-      || multiTfData?.['4h']
+      || (multiTfData?.['4h']?.symbol.replace(/\.BK$/i, '').toUpperCase() === symbol ? multiTfData['4h'] : null)
       || (data.timeframe === '4h' ? data : null)
-      || multiTfData?.['1h']
+      || (multiTfData?.['1h']?.symbol.replace(/\.BK$/i, '').toUpperCase() === symbol ? multiTfData['1h'] : null)
       || (data.timeframe === '1h' ? data : null);
 
     if (!institutionalData || !institutionalData.summary?.simpleTradePlan?.buyZone) {
@@ -477,16 +490,37 @@ class AlertManager {
     }
 
     const plan = institutionalData.summary.simpleTradePlan;
-    const buyZone = plan.buyZone;
-    const symbol = data.symbol.replace(/\.BK$/i, '').toUpperCase();
-    const currentPrice = data.summary.keyLevels.currentPrice;
 
-    // ── SELL ZONE / TAKE PROFIT (TP) TARGETS ──
+    // ── SOUND SPOT TRADING LEVELS (BUY ZONE, TP, SL) ──
     const luxAlgoSetup = institutionalData.summary?.luxAlgoTradeSetup || data.summary?.luxAlgoTradeSetup;
-    const targetTp = luxAlgoSetup?.takeProfit2?.price ?? plan.sellZone?.minPrice ?? plan.sellTargets.target1Year.price;
-    const sellMin = targetTp;
-    const sellMax = luxAlgoSetup?.takeProfit2?.price ?? plan.sellZone?.maxPrice ?? Number((sellMin * 1.06).toFixed(2));
-    const tp1Price = luxAlgoSetup?.takeProfit1?.price ?? plan.sellZone?.minPrice ?? Number((sellMin * 0.95).toFixed(2));
+    let buyMin: number;
+    let buyMax: number;
+    let slPrice: number;
+    let tp1Price: number;
+    let tp2Price: number;
+
+    if (luxAlgoSetup && luxAlgoSetup.setupType === 'LONG' && luxAlgoSetup.entryZone) {
+      buyMin = luxAlgoSetup.entryZone.min;
+      buyMax = luxAlgoSetup.entryZone.max;
+      slPrice = (luxAlgoSetup.stopLoss?.price && luxAlgoSetup.stopLoss.price < buyMin) ? luxAlgoSetup.stopLoss.price : plan.cutLoss.price;
+      tp2Price = (luxAlgoSetup.takeProfit2?.price && luxAlgoSetup.takeProfit2.price > currentPrice) ? luxAlgoSetup.takeProfit2.price : (plan.sellZone?.maxPrice ?? plan.sellTargets.target1Year.price);
+      tp1Price = (luxAlgoSetup.takeProfit1?.price && luxAlgoSetup.takeProfit1.price > buyMax && luxAlgoSetup.takeProfit1.price < tp2Price) ? luxAlgoSetup.takeProfit1.price : (plan.sellZone?.minPrice ?? plan.sellTargets.target1Year.price);
+    } else {
+      buyMin = plan.buyZone.minPrice;
+      buyMax = plan.buyZone.maxPrice;
+      slPrice = plan.cutLoss.price;
+      tp1Price = plan.sellZone?.minPrice ?? plan.sellTargets.target1Year.price;
+      tp2Price = plan.sellZone?.maxPrice ?? plan.sellTargets.target1Year.price;
+    }
+
+    // Strict spot trading sanity checks:
+    if (slPrice >= buyMin) slPrice = Number((buyMin * 0.95).toFixed(2));
+    if (tp2Price <= currentPrice) tp2Price = Number((Math.max(currentPrice * 1.15, plan.sellZone?.maxPrice ?? (currentPrice * 1.20))).toFixed(2));
+    if (tp1Price <= currentPrice) tp1Price = Number(((buyMax + tp2Price) / 2).toFixed(2));
+
+    const targetTp = tp2Price;
+    const sellMin = tp1Price;
+    const sellMax = tp2Price;
 
     const now = Date.now();
 
@@ -533,7 +567,7 @@ class AlertManager {
     // ─────────────────────────────────────────────────────────────
     // 1. EVALUATE TAKE PROFIT (TP) ALERT (เตือนที่ -2% แค่ครั้งเดียว!)
     // ─────────────────────────────────────────────────────────────
-    const isNearTpZone = sellMin > 0 && currentPrice >= (sellMin * 0.98);
+    const isNearTpZone = targetTp > currentPrice * 0.95 && currentPrice >= (targetTp * 0.98) && currentPrice <= (targetTp * 1.05) && targetTp > buyMax;
 
     if (isNearTpZone) {
       // Check if already active
@@ -549,19 +583,19 @@ class AlertManager {
         symbol,
         companyName: data.name || symbol,
         currentPrice,
-        buyZoneMin: buyZone.minPrice,
-        buyZoneMax: buyZone.maxPrice,
+        buyZoneMin: buyMin,
+        buyZoneMax: buyMax,
         targetPrice6M: tp1Price,
         targetPrice1Y: targetTp,
-        stopLossPrice: luxAlgoSetup?.stopLoss?.price ?? plan.cutLoss.price,
+        stopLossPrice: slPrice,
         confidenceScore: aiVerdict.confidenceScore,
         volumeBuyRatio: volumeFlow.buyRatio,
         volumeDelta: volumeFlow.netDelta,
         wickRejection: false,
         timeframe: '3-TF CONFLUENCE (1D/4H/1H)',
         alertType: 'TP',
-        sellZoneMin: tp1Price,
-        sellZoneMax: targetTp,
+        sellZoneMin: sellMin,
+        sellZoneMax: sellMax,
         title: `🎯 ใกล้ถึงโซน TP: ${symbol} ราคา $${currentPrice.toFixed(2)} เข้าใกล้เป้า $${targetTp.toFixed(2)} (เตือนตั้งแต่ -2%)`,
         message: `ราคา $${currentPrice.toFixed(2)} เข้าใกล้โซนทำกำไร Take Profit (TP: $${targetTp.toFixed(2)}) แนะนำเตรียมทยอยแบ่งขาย (เตือนแค่ครั้งเดียว)`,
         read: false,
@@ -593,9 +627,9 @@ class AlertManager {
       return null;
     }
 
-    const inBuyZone = currentPrice >= buyZone.minPrice * 0.995 && currentPrice <= buyZone.maxPrice * 1.005;
+    const inBuyZone = currentPrice >= buyMin * 0.99 && currentPrice <= buyMax * 1.01;
     if (!inBuyZone) {
-      if (currentPrice > buyZone.maxPrice * 1.03 || (plan.cutLoss.price > 0 && currentPrice < plan.cutLoss.price)) {
+      if (currentPrice > buyMax * 1.03 || (slPrice > 0 && currentPrice < slPrice)) {
         this.clearAlertActive(symbol, 'BUY');
       }
       return null;
@@ -622,7 +656,7 @@ class AlertManager {
       return null;
     }
 
-    this.markAlertActive(symbol, 'BUY', currentPrice, buyZone.minPrice);
+    this.markAlertActive(symbol, 'BUY', currentPrice, buyMin);
 
     const alertItem: BuyAlertItem = {
       id: `alert-buy-${symbol}-${now}`,
@@ -630,11 +664,11 @@ class AlertManager {
       symbol,
       companyName: data.name || symbol,
       currentPrice,
-      buyZoneMin: buyZone.minPrice,
-      buyZoneMax: buyZone.maxPrice,
-      targetPrice6M: plan.sellTargets.target1Year.price,
-      targetPrice1Y: sellMin,
-      stopLossPrice: plan.cutLoss.price,
+      buyZoneMin: buyMin,
+      buyZoneMax: buyMax,
+      targetPrice6M: tp1Price,
+      targetPrice1Y: targetTp,
+      stopLossPrice: slPrice,
       confidenceScore: confidence,
       volumeBuyRatio: volumeFlow.buyRatio,
       volumeDelta: volumeFlow.netDelta,
@@ -643,7 +677,7 @@ class AlertManager {
       alertType: 'BUY',
       sellZoneMin: sellMin,
       sellZoneMax: sellMax,
-      title: `🟢 จุดซื้อสถาบันผสาน 3 Timeframes: ${symbol} แตะโซนช้อน $${buyZone.minPrice.toFixed(2)}–$${buyZone.maxPrice.toFixed(2)}`,
+      title: `🟢 จุดซื้อสถาบันผสาน 3 Timeframes: ${symbol} แตะโซนช้อน $${buyMin.toFixed(2)}–$${buyMax.toFixed(2)}`,
       message: `ราคา $${currentPrice.toFixed(2)} เข้ากรอบสะสมของถูก Smart Money พร้อม AI มั่นใจ 3-TF สูง ${confidence}% (เตือนแค่ครั้งเดียว)`,
       read: false,
       multiTimeframe

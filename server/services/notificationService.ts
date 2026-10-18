@@ -397,20 +397,17 @@ export class NotificationService {
       ].includes(data.symbol.replace(/\.BK$/i, "").toUpperCase());
     const curr = isThai ? "฿" : "$";
 
-    const gain1Y =
+    const gainNum =
       data.currentPrice > 0
-        ? (
-            ((data.targetPrice1Y - data.currentPrice) / data.currentPrice) *
-            100
-          ).toFixed(1)
-        : "0.0";
-    const lossSL =
+        ? ((data.targetPrice1Y - data.currentPrice) / data.currentPrice) * 100
+        : 0;
+    const gain1Y = gainNum >= 0 ? `+${gainNum.toFixed(1)}%` : `${gainNum.toFixed(1)}%`;
+
+    const lossNum =
       data.currentPrice > 0
-        ? (
-            ((data.stopLossPrice - data.currentPrice) / data.currentPrice) *
-            100
-          ).toFixed(1)
-        : "0.0";
+        ? ((data.stopLossPrice - data.currentPrice) / data.currentPrice) * 100
+        : 0;
+    const lossSL = lossNum >= 0 ? `+${lossNum.toFixed(1)}%` : `${lossNum.toFixed(1)}%`;
 
     const hasMultiTf = Boolean(
       data.multiTimeframe &&
@@ -497,21 +494,43 @@ export class NotificationService {
             contents: [
               {
                 type: "text",
-                text: isTpAlert ? "🎯 โซน TP" : "💰 โซนช้อนซื้อ",
+                text: "🛒 จุดควรซื้อ (Buy)",
                 size: "xs",
                 color: "#94a3b8",
-                flex: 4,
+                flex: 5,
               },
               {
                 type: "text",
-                text: isTpAlert
-                  ? `${curr}${sellMin.toFixed(2)} – ${curr}${sellMax.toFixed(2)}`
-                  : `${curr}${data.buyZoneMin.toFixed(2)} – ${curr}${data.buyZoneMax.toFixed(2)}`,
+                text: `${curr}${data.buyZoneMin.toFixed(2)} – ${curr}${data.buyZoneMax.toFixed(2)}`,
                 size: "xs",
                 weight: "bold",
-                color: isTpAlert ? "#fbbf24" : "#34d399",
+                color: "#34d399",
                 align: "end",
-                flex: 7,
+                flex: 6,
+              },
+            ],
+          },
+          {
+            type: "box",
+            layout: "horizontal",
+            alignItems: "center",
+            margin: "xs",
+            contents: [
+              {
+                type: "text",
+                text: "🎯 จุดทำกำไร (TP)",
+                size: "xs",
+                color: "#94a3b8",
+                flex: 5,
+              },
+              {
+                type: "text",
+                text: `${curr}${sellMin.toFixed(2)} – ${curr}${sellMax.toFixed(2)}`,
+                size: "xs",
+                weight: "bold",
+                color: "#fbbf24",
+                align: "end",
+                flex: 6,
               },
             ],
           },
@@ -749,7 +768,7 @@ export class NotificationService {
             },
             {
               type: "text",
-              text: `${curr}${data.targetPrice1Y.toFixed(2)} (+${gain1Y}%)`,
+              text: `${curr}${data.targetPrice1Y.toFixed(2)} (${gain1Y})`,
               size: "xs",
               weight: "bold",
               color: "#34d399",
@@ -778,7 +797,7 @@ export class NotificationService {
             },
             {
               type: "text",
-              text: `${curr}${data.stopLossPrice.toFixed(2)} (${lossSL}%)`,
+              text: `${curr}${data.stopLossPrice.toFixed(2)} (${lossSL})`,
               size: "xs",
               weight: "bold",
               color: "#f43f5e",

@@ -254,6 +254,11 @@ export const App: React.FC = () => {
       setLiveQuote(null);
     }
 
+    // Clear previous stock's data immediately to prevent cross-stock data contamination
+    setAnalysisData(null);
+    setMultiTfData(null);
+    setNews([]);
+
     // 2. Fetch fresh SMC analysis, news, multi-tf, and live tick for the clicked stock
     loadAnalysis(symbol, timeframe);
     loadNews(symbol);

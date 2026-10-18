@@ -244,12 +244,38 @@ export class BackgroundAlertScanner {
           const luxSetup = smcResult1d.summary.luxAlgoTradeSetup;
           const simplePlan = smcResult1d.summary.simpleTradePlan;
 
-          const buyMin = luxSetup?.entryZone?.min ?? simplePlan?.buyZone.minPrice ?? 0;
-          const buyMax = luxSetup?.entryZone?.max ?? simplePlan?.buyZone.maxPrice ?? 0;
-          const slPrice = luxSetup?.stopLoss?.price ?? simplePlan?.cutLoss.price ?? 0;
-          const tp1Price = luxSetup?.takeProfit1?.price ?? simplePlan?.sellZone?.minPrice ?? 0;
-          const tp2Price = luxSetup?.takeProfit2?.price ?? simplePlan?.sellZone?.maxPrice ?? simplePlan?.sellTargets.target1Year.price ?? 0;
-          const rr = luxSetup?.riskRewardRatio ?? simplePlan?.riskRewardRatio ?? 1.76;
+          let buyMin: number;
+          let buyMax: number;
+          let slPrice: number;
+          let tp1Price: number;
+          let tp2Price: number;
+
+          const planCutLoss = simplePlan?.cutLoss?.price ?? Number((currentPrice * 0.92).toFixed(2));
+          const planSellMax = simplePlan?.sellZone?.maxPrice ?? simplePlan?.sellTargets?.target1Year?.price ?? Number((currentPrice * 1.25).toFixed(2));
+          const planSellMin = simplePlan?.sellZone?.minPrice ?? simplePlan?.sellTargets?.target1Year?.price ?? Number((currentPrice * 1.15).toFixed(2));
+          const planBuyMin = simplePlan?.buyZone?.minPrice ?? Number((currentPrice * 0.95).toFixed(2));
+          const planBuyMax = simplePlan?.buyZone?.maxPrice ?? Number((currentPrice * 0.98).toFixed(2));
+
+          if (luxSetup && luxSetup.setupType === 'LONG' && luxSetup.entryZone) {
+            buyMin = luxSetup.entryZone.min;
+            buyMax = luxSetup.entryZone.max;
+            slPrice = (luxSetup.stopLoss?.price && luxSetup.stopLoss.price < buyMin) ? luxSetup.stopLoss.price : planCutLoss;
+            tp2Price = (luxSetup.takeProfit2?.price && luxSetup.takeProfit2.price > currentPrice) ? luxSetup.takeProfit2.price : planSellMax;
+            tp1Price = (luxSetup.takeProfit1?.price && luxSetup.takeProfit1.price > buyMax && luxSetup.takeProfit1.price < tp2Price) ? luxSetup.takeProfit1.price : planSellMin;
+          } else {
+            buyMin = planBuyMin;
+            buyMax = planBuyMax;
+            slPrice = planCutLoss;
+            tp1Price = planSellMin;
+            tp2Price = planSellMax;
+          }
+
+          // Strict spot trading sanity checks:
+          if (slPrice >= buyMin) slPrice = Number((buyMin * 0.95).toFixed(2));
+          if (tp2Price <= currentPrice) tp2Price = Number((Math.max(currentPrice * 1.15, planSellMax)).toFixed(2));
+          if (tp1Price <= currentPrice) tp1Price = Number(((buyMax + tp2Price) / 2).toFixed(2));
+
+          const rr = Number(Math.max(1.1, (tp2Price - buyMax) / Math.max(0.01, buyMax - slPrice)).toFixed(2));
 
           // Compute individual scores for all 3 timeframes
           const res1h = this.computeTfScore(item.displaySymbol, item.name, '1h', candles1h, currentPrice, smcResult1d);
@@ -273,6 +299,10 @@ export class BackgroundAlertScanner {
             ]
           };
 
+          const isNearTp = tp2Price > currentPrice * 0.95 && currentPrice >= (tp2Price * 0.98) && currentPrice <= (tp2Price * 1.05) && tp2Price > buyMax;
+          const isReachedTp = currentPrice >= tp2Price && tp2Price > buyMax;
+          const inBuyZone = buyMin > 0 && currentPrice >= (buyMin * 0.99) && currentPrice <= (buyMax * 1.01);
+
           this.setups.set(item.displaySymbol.toUpperCase(), {
             symbol: item.displaySymbol,
             displaySymbol: item.displaySymbol,
@@ -288,9 +318,9 @@ export class BackgroundAlertScanner {
             confidenceScore: avgScore, // Average of 3 timeframes (หารสาม)
             timeframe: '3-TF CONFLUENCE (1D/4H/1H)',
             lastUpdated: Date.now(),
-            isNearTp: tp2Price > 0 && currentPrice >= tp2Price * 0.98,
-            isReachedTp: tp2Price > 0 && currentPrice >= tp2Price,
-            inBuyZone: currentPrice >= buyMin * 0.995 && currentPrice <= buyMax * 1.005,
+            isNearTp,
+            isReachedTp,
+            inBuyZone,
             volumeBuyRatio: res1d.buyRatio,
             multiTimeframe
           });
@@ -358,7 +388,7 @@ export class BackgroundAlertScanner {
         // ─────────────────────────────────────────────────────────────
         // 1. EVALUATE TP ALERT (ใกล้ถึงเป้า TP ตั้งแต่ -2%)
         // ─────────────────────────────────────────────────────────────
-        const isNearTp = tpPrice > 0 && currentPrice >= (tpPrice * 0.98);
+        const isNearTp = tpPrice > currentPrice * 0.95 && currentPrice >= (tpPrice * 0.98) && currentPrice <= (tpPrice * 1.05) && tpPrice > buyMax;
         const tpKey = `${sym}-TP`;
 
         if (isNearTp) {
@@ -408,7 +438,7 @@ export class BackgroundAlertScanner {
           setup.isReachedTp = false;
 
           // Hysteresis reset: only reset when price drops below 95% of TP
-          if (tpPrice > 0 && currentPrice < tpPrice * 0.95 && this.triggeredStates.has(tpKey)) {
+          if (tpPrice > 0 && (currentPrice < tpPrice * 0.95 || currentPrice > tpPrice * 1.06) && this.triggeredStates.has(tpKey)) {
             console.log(`[BackgroundScanner] Resetting TP alert state for ${sym} (price fell to ${curr}${currentPrice})`);
             this.triggeredStates.delete(tpKey);
             this.saveStateToDisk();
@@ -418,7 +448,7 @@ export class BackgroundAlertScanner {
         // ─────────────────────────────────────────────────────────────
         // 2. EVALUATE BUY ZONE ALERT (เข้าสู่โซนช้อนซื้อสถาบัน)
         // ─────────────────────────────────────────────────────────────
-        const inBuyZone = buyMin > 0 && currentPrice >= buyMin * 0.995 && currentPrice <= buyMax * 1.005;
+        const inBuyZone = buyMin > 0 && currentPrice >= (buyMin * 0.99) && currentPrice <= (buyMax * 1.01);
         const buyKey = `${sym}-BUY`;
 
         if (inBuyZone) {
