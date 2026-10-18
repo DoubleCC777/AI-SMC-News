@@ -165,14 +165,7 @@ class AlertManager {
       return null;
     }
 
-    // ── REQUIREMENT 2: AI CONFIDENCE MUST BE >= 75% ──
-    const confidence = aiVerdict.confidenceScore;
-    const requiredThreshold = Math.max(75, this.config.minConfidenceScore);
-    if (confidence < requiredThreshold) {
-      return null;
-    }
-
-    // ── REQUIREMENT 3: USE INSTITUTIONAL TIMEFRAME (1D OR 4H) FOR BUY ZONE (NEVER 15M) ──
+    // ── REQUIREMENT 2: USE INSTITUTIONAL TIMEFRAME (1D OR 4H) FOR TRADE LEVELS (NEVER 15M) ──
     const institutionalData = multiTfData?.['1d']
       || (data.timeframe === '1d' ? data : null)
       || multiTfData?.['4h']
@@ -189,41 +182,12 @@ class AlertManager {
     const symbol = data.symbol;
     const currentPrice = data.summary.keyLevels.currentPrice;
 
-    // Check if price is within institutional buy zone
-    const inBuyZone = currentPrice >= buyZone.minPrice * 0.995 && currentPrice <= buyZone.maxPrice * 1.005;
-    if (!inBuyZone) return null;
+    // ── SELL ZONE / HIGHER HIGH (HH) TARGETS ──
+    const sellMin = plan.sellZone?.minPrice ?? plan.sellTargets.target1Year.price;
+    const sellMax = plan.sellZone?.maxPrice ?? Number((sellMin * 1.06).toFixed(2));
 
-    // Filter B: Volume Flow confirmation
-    const volumeFlow = aiVerdict.volumeFlow || institutionalData.summary?.volumeAnalysis || {
-      buyRatio: 50,
-      sellRatio: 50,
-      netDelta: 0
-    };
-    if (this.config.requireVolumeConfirmation && volumeFlow.buyRatio < 50) {
-      return null;
-    }
-
-    // Filter C: Wick rejection check on latest candle
-    const latestCandle = institutionalData.candles[institutionalData.candles.length - 1] || data.candles[data.candles.length - 1];
-    let wickRejection = false;
-    if (latestCandle) {
-      const range = latestCandle.high - latestCandle.low;
-      if (range > 0) {
-        const lowerWick = Math.min(latestCandle.open, latestCandle.close) - latestCandle.low;
-        wickRejection = lowerWick / range >= 0.35;
-      }
-    }
-    if (this.config.requireWickConfirmation && !wickRejection) {
-      return null;
-    }
-
-    // Debounce: Avoid alerting for the same symbol within 15 minutes
     const now = Date.now();
-    const lastTriggered = this.lastAlertsBySymbol[symbol] || 0;
     const cooldownMs = 15 * 60 * 1000; // 15 minutes
-    if (now - lastTriggered < cooldownMs) {
-      return null;
-    }
 
     // ── CONSTRUCT 3-TIMEFRAME SNAPSHOTS (1D, 4H, 1H) ──
     const tfOrder: ('1d' | '4h' | '1h')[] = ['1d', '4h', '1h'];
@@ -259,9 +223,90 @@ class AlertManager {
       items: tfItems
     };
 
-    // Construct alert - STRICTLY labelled with 3-TF CONFLUENCE (NEVER 15M)
+    const volumeFlow = aiVerdict.volumeFlow || institutionalData.summary?.volumeAnalysis || {
+      buyRatio: 50,
+      sellRatio: 50,
+      netDelta: 0
+    };
+
+    // ── 1. EVALUATE SELL / TAKE PROFIT ALERT (เข้าใกล้หรือแตะจุด Higher High - HH) ──
+    // ตรวจจับเมื่อราคาขยับขึ้นมาใกล้กรอบขายใกล้ HH (ตั้งแต่ 98.5% ของ sellMin ขึ้นไป)
+    const isNearHhSellZone = sellMin > 0 && currentPrice >= (sellMin * 0.985);
+    const lastSellHhTriggered = this.lastAlertsBySymbol[`${symbol}-SELL_HH`] || 0;
+
+    if (isNearHhSellZone && (now - lastSellHhTriggered >= cooldownMs)) {
+      const alertItem: BuyAlertItem = {
+        id: `alert-sell-${symbol}-${now}`,
+        timestamp: now,
+        symbol,
+        companyName: data.name || symbol,
+        currentPrice,
+        buyZoneMin: buyZone.minPrice,
+        buyZoneMax: buyZone.maxPrice,
+        targetPrice6M: plan.sellTargets.target1Year.price,
+        targetPrice1Y: sellMin,
+        stopLossPrice: plan.cutLoss.price,
+        confidenceScore: aiVerdict.confidenceScore,
+        volumeBuyRatio: volumeFlow.buyRatio,
+        volumeDelta: volumeFlow.netDelta,
+        wickRejection: false,
+        timeframe: '3-TF CONFLUENCE (1D/4H/1H)',
+        alertType: 'SELL_HH',
+        sellZoneMin: sellMin,
+        sellZoneMax: sellMax,
+        title: `🎯 จุดขายใกล้ HH: ${symbol} ราคา $${currentPrice.toFixed(2)} แตะกรอบทำกำไร $${sellMin.toFixed(2)}–$${sellMax.toFixed(2)}`,
+        message: `ราคา $${currentPrice.toFixed(2)} เข้าใกล้จุด Higher High (HH) สูงสุด แนะนำแบ่งไม้ขายทำกำไร ไม้ 1 ที่ $${sellMin.toFixed(2)} (ดักใกล้ HH) และ ไม้ 2 ที่ $${sellMax.toFixed(2)} (ยอด HH)`,
+        read: false,
+        multiTimeframe
+      };
+
+      this.lastAlertsBySymbol[`${symbol}-SELL_HH`] = now;
+      localStorage.setItem(LAST_ALERT_TIMESTAMP_KEY, JSON.stringify(this.lastAlertsBySymbol));
+      this.alerts = [alertItem, ...this.alerts].slice(0, 30);
+      localStorage.setItem(ALERTS_HISTORY_KEY, JSON.stringify(this.alerts));
+
+      if (this.config.soundEnabled) {
+        playBuyAlertSound();
+      }
+      this.dispatchExternalAlerts(alertItem);
+      this.notifyListeners(alertItem);
+      return alertItem;
+    }
+
+    // ── 2. EVALUATE BUY ALERT (เข้าสู่โซนช้อนซื้อ Smart Money) ──
+    const confidence = aiVerdict.confidenceScore;
+    const requiredThreshold = Math.max(75, this.config.minConfidenceScore);
+    if (confidence < requiredThreshold) {
+      return null;
+    }
+
+    const inBuyZone = currentPrice >= buyZone.minPrice * 0.995 && currentPrice <= buyZone.maxPrice * 1.005;
+    if (!inBuyZone) return null;
+
+    if (this.config.requireVolumeConfirmation && volumeFlow.buyRatio < 50) {
+      return null;
+    }
+
+    const latestCandle = institutionalData.candles[institutionalData.candles.length - 1] || data.candles[data.candles.length - 1];
+    let wickRejection = false;
+    if (latestCandle) {
+      const range = latestCandle.high - latestCandle.low;
+      if (range > 0) {
+        const lowerWick = Math.min(latestCandle.open, latestCandle.close) - latestCandle.low;
+        wickRejection = lowerWick / range >= 0.35;
+      }
+    }
+    if (this.config.requireWickConfirmation && !wickRejection) {
+      return null;
+    }
+
+    const lastBuyTriggered = this.lastAlertsBySymbol[`${symbol}-BUY`] || this.lastAlertsBySymbol[symbol] || 0;
+    if (now - lastBuyTriggered < cooldownMs) {
+      return null;
+    }
+
     const alertItem: BuyAlertItem = {
-      id: `alert-${symbol}-${now}`,
+      id: `alert-buy-${symbol}-${now}`,
       timestamp: now,
       symbol,
       companyName: data.name || symbol,
@@ -269,38 +314,33 @@ class AlertManager {
       buyZoneMin: buyZone.minPrice,
       buyZoneMax: buyZone.maxPrice,
       targetPrice6M: plan.sellTargets.target1Year.price,
-      targetPrice1Y: plan.sellTargets.target1Year.price,
+      targetPrice1Y: sellMin,
       stopLossPrice: plan.cutLoss.price,
       confidenceScore: confidence,
       volumeBuyRatio: volumeFlow.buyRatio,
       volumeDelta: volumeFlow.netDelta,
       wickRejection,
-      timeframe: '3-TF CONFLUENCE (1D/4H/1H)', // NEVER 15M!
+      timeframe: '3-TF CONFLUENCE (1D/4H/1H)',
+      alertType: 'BUY',
+      sellZoneMin: sellMin,
+      sellZoneMax: sellMax,
       title: `🟢 จุดซื้อสถาบันผสาน 3 Timeframes: ${symbol} แตะโซนช้อน $${buyZone.minPrice.toFixed(2)}–$${buyZone.maxPrice.toFixed(2)}`,
       message: `ราคา $${currentPrice.toFixed(2)} เข้ากรอบสะสมของถูก Smart Money พร้อม AI มั่นใจ 3-TF สูง ${confidence}% (1D:${tfItems[0].score}% | 4H:${tfItems[1].score}% | 1H:${tfItems[2].score}%)`,
       read: false,
       multiTimeframe
     };
 
-    // Save cooldown timestamp
+    this.lastAlertsBySymbol[`${symbol}-BUY`] = now;
     this.lastAlertsBySymbol[symbol] = now;
     localStorage.setItem(LAST_ALERT_TIMESTAMP_KEY, JSON.stringify(this.lastAlertsBySymbol));
-
-    // Save alert to history
     this.alerts = [alertItem, ...this.alerts].slice(0, 30);
     localStorage.setItem(ALERTS_HISTORY_KEY, JSON.stringify(this.alerts));
 
-    // Play Audio Chime
     if (this.config.soundEnabled) {
       playBuyAlertSound();
     }
-
-    // Dispatch webhook notifications to Discord, Telegram, LINE
     this.dispatchExternalAlerts(alertItem);
-
-    // Notify in-app UI listeners (Toast banner & Bell)
     this.notifyListeners(alertItem);
-
     return alertItem;
   }
 
@@ -324,7 +364,10 @@ class AlertManager {
             volumeDelta: alert.volumeDelta,
             wickRejection: alert.wickRejection,
             timeframe: alert.timeframe,
-            multiTimeframe: alert.multiTimeframe
+            multiTimeframe: alert.multiTimeframe,
+            alertType: alert.alertType,
+            sellZoneMin: alert.sellZoneMin,
+            sellZoneMax: alert.sellZoneMax
           },
           config: this.config
         })

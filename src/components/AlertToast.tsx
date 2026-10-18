@@ -25,21 +25,43 @@ export const AlertToast: React.FC<AlertToastProps> = ({ onSelectStock }) => {
 
   if (!activeAlert) return null;
 
+  const isSellHh = activeAlert.alertType === 'SELL_HH';
+  const sellMin = activeAlert.sellZoneMin ?? activeAlert.targetPrice1Y;
+  const sellMax = activeAlert.sellZoneMax ?? Number((sellMin * 1.06).toFixed(2));
+
   return (
     <div className="fixed top-14 right-4 z-50 max-w-sm w-full animate-in fade-in slide-in-from-top-4 duration-300 pointer-events-auto">
-      <div className="bg-[#0b101d]/95 backdrop-blur-xl border border-emerald-500/40 rounded-2xl p-4 shadow-2xl shadow-emerald-950/60 ring-1 ring-emerald-500/30">
+      <div
+        className={`backdrop-blur-xl rounded-2xl p-4 shadow-2xl transition-all duration-300 ${
+          isSellHh
+            ? 'bg-[#140e06]/95 border border-amber-500/40 shadow-amber-950/60 ring-1 ring-amber-500/30'
+            : 'bg-[#0b101d]/95 border border-emerald-500/40 shadow-emerald-950/60 ring-1 ring-emerald-500/30'
+        }`}
+      >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0 shadow-[0_0_12px_rgba(16,185,129,0.3)] animate-pulse">
-              <Bell className="w-4 h-4" />
+            <div
+              className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 animate-pulse ${
+                isSellHh
+                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+                  : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+              }`}
+            >
+              {isSellHh ? <TrendingUp className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-mono font-black px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <span
+                  className={`text-[11px] font-mono font-black px-2 py-0.5 rounded-md border ${
+                    isSellHh
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                      : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                  }`}
+                >
                   {activeAlert.symbol}
                 </span>
                 <span className="text-xs font-bold text-white">
-                  แตะจุดซื้อสถาบันแล้ว!
+                  {isSellHh ? 'ใกล้จุด Higher High (HH) แล้ว!' : 'แตะจุดซื้อสถาบันแล้ว!'}
                 </span>
               </div>
               <span className="text-[10px] text-slate-400 font-mono">
@@ -56,39 +78,72 @@ export const AlertToast: React.FC<AlertToastProps> = ({ onSelectStock }) => {
           </button>
         </div>
 
-        <div className="mt-2.5 p-2 rounded-xl bg-black/40 border border-white/[0.05] text-[11px] space-y-1">
-          <div className="flex justify-between text-slate-300">
-            <span>🛒 โซนช้อนซื้อ:</span>
-            <span className="font-mono font-bold text-emerald-400">
-              ${activeAlert.buyZoneMin.toFixed(2)} – ${activeAlert.buyZoneMax.toFixed(2)}
-            </span>
+        {isSellHh ? (
+          <div className="mt-2.5 p-2 rounded-xl bg-black/40 border border-amber-500/15 text-[11px] space-y-1 font-mono">
+            <div className="flex justify-between text-slate-300">
+              <span className="font-sans">🎯 จุดขายใกล้ HH:</span>
+              <span className="font-bold text-amber-300">
+                ${sellMin.toFixed(2)} – ${sellMax.toFixed(2)}
+              </span>
+            </div>
+            <div className="flex justify-between text-slate-300">
+              <span className="font-sans flex items-center gap-1">
+                <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-amber-500/20 text-amber-300">ไม้ 1</span>
+                <span>ดักใกล้ HH:</span>
+              </span>
+              <span className="font-bold text-amber-400">
+                ${sellMin.toFixed(2)} (ขาย 50%)
+              </span>
+            </div>
+            <div className="flex justify-between text-slate-300">
+              <span className="font-sans flex items-center gap-1">
+                <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-amber-500/20 text-amber-300">ไม้ 2</span>
+                <span>ยอด HH สูงสุด:</span>
+              </span>
+              <span className="font-bold text-amber-300">
+                ${sellMax.toFixed(2)} (ขาย 50%)
+              </span>
+            </div>
           </div>
-          <div className="flex justify-between text-slate-300">
-            <span>📊 Volume Flow:</span>
-            <span className="font-mono text-cyan-300 font-medium">
-              ซื้อ {activeAlert.volumeBuyRatio}% (Delta +{(activeAlert.volumeDelta / 1e6).toFixed(1)}M)
-            </span>
+        ) : (
+          <div className="mt-2.5 p-2 rounded-xl bg-black/40 border border-white/[0.05] text-[11px] space-y-1">
+            <div className="flex justify-between text-slate-300">
+              <span>🛒 โซนช้อนซื้อ:</span>
+              <span className="font-mono font-bold text-emerald-400">
+                ${activeAlert.buyZoneMin.toFixed(2)} – ${activeAlert.buyZoneMax.toFixed(2)}
+              </span>
+            </div>
+            <div className="flex justify-between text-slate-300">
+              <span>📊 Volume Flow:</span>
+              <span className="font-mono text-cyan-300 font-medium">
+                ซื้อ {activeAlert.volumeBuyRatio}% (Delta +{(activeAlert.volumeDelta / 1e6).toFixed(1)}M)
+              </span>
+            </div>
+            <div className="flex justify-between text-slate-300">
+              <span>🧠 AI มั่นใจ:</span>
+              <span className="font-mono font-bold text-emerald-300">
+                {activeAlert.confidenceScore}% (สถาบันหนุน)
+              </span>
+            </div>
           </div>
-          <div className="flex justify-between text-slate-300">
-            <span>🧠 AI มั่นใจ:</span>
-            <span className="font-mono font-bold text-emerald-300">
-              {activeAlert.confidenceScore}% (สถาบันหนุน)
-            </span>
-          </div>
-        </div>
+        )}
 
         <div className="mt-3 flex items-center justify-between gap-2">
           <span className="text-[9.5px] text-slate-500">
-            ส่งแจ้งเตือนเรียบร้อย 🔔
+            {isSellHh ? 'ส่งเตือนล็อกกำไรเรียบร้อย 🎯' : 'ส่งแจ้งเตือนเรียบร้อย 🔔'}
           </span>
           <button
             onClick={() => {
               if (onSelectStock) onSelectStock(activeAlert.symbol);
               setActiveAlert(null);
             }}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs transition-all shadow-md shadow-emerald-500/20 active:scale-95"
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-black font-bold text-xs transition-all active:scale-95 shadow-md ${
+              isSellHh
+                ? 'bg-amber-500 hover:bg-amber-400 shadow-amber-500/20'
+                : 'bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/20'
+            }`}
           >
-            <span>เปิดดูกราฟ</span>
+            <span>{isSellHh ? 'ขายทำกำไร / ดูกราฟ' : 'เปิดดูกราฟ'}</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>

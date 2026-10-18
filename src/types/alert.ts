@@ -49,6 +49,9 @@ export interface BuyAlertItem {
   title: string;
   message: string;
   read: boolean;
+  alertType?: 'BUY' | 'SELL_HH';
+  sellZoneMin?: number;
+  sellZoneMax?: number;
   multiTimeframe?: {
     alignmentText: string;
     items: MultiTfAlertSnapshot[];
