@@ -281,12 +281,34 @@ export const App: React.FC = () => {
     return analyzeNewsAndSmcConfluence(analysisData, news, multiTfData);
   }, [analysisData, news, multiTfData]);
 
-  // Automated Smart Money Buy Signal Monitor & Alert Dispatcher (Strict 3-TF Confluence)
+  // 1. Automated Active Stock Alert Monitor (Single alert guarantee)
   useEffect(() => {
     if (analysisData && aiVerdict) {
       alertManager.evaluateSignal(analysisData, aiVerdict, multiTfData);
     }
   }, [analysisData, aiVerdict, multiTfData]);
+
+  // 2. Automated Watchlist Alert Monitor: checks ALL watchlist stocks in the background
+  // No need for the user to click into that stock to trigger alerts!
+  useEffect(() => {
+    if (quotes.length > 0) {
+      alertManager.evaluateWatchlistQuotes(quotes);
+    }
+  }, [quotes]);
+
+  // 3. Periodic Background Server Alert Sync (every 15s)
+  useEffect(() => {
+    alertManager.syncWatchlistSetups();
+    alertManager.syncServerAlerts();
+
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        alertManager.syncServerAlerts();
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="app-shell min-h-screen md:h-screen md:overflow-hidden text-slate-100 flex flex-col font-sans bg-[#090c15]">

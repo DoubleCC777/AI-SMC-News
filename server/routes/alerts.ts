@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { NotificationService, DispatchAlertPayload } from '../services/notificationService.js';
+import { BackgroundAlertScanner } from '../services/backgroundAlertScanner.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -164,7 +165,35 @@ router.post('/dispatch', async (req: Request, res: Response) => {
     }
   }
 
+  // Save to history as well
+  try {
+    BackgroundAlertScanner.addManualAlert(alertData);
+  } catch (e) {}
+
   res.json({ success: true, results });
+});
+
+// GET /api/alerts/history - Retrieve recent background alerts
+router.get('/history', (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    data: BackgroundAlertScanner.getAlertHistory()
+  });
+});
+
+// GET /api/alerts/watchlist-status - Retrieve all watchlist stock levels and alert status
+router.get('/watchlist-status', (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    data: BackgroundAlertScanner.getWatchlistSetups()
+  });
+});
+
+// POST /api/alerts/reset-triggered - Reset triggered state (e.g. for re-arming alerts)
+router.post('/reset-triggered', (req: Request, res: Response) => {
+  const { symbol, type } = req.body;
+  BackgroundAlertScanner.resetTriggeredState(symbol, type);
+  res.json({ success: true, message: 'รีเซ็ตสถานะการแจ้งเตือนเรียบร้อยแล้ว' });
 });
 
 export default router;

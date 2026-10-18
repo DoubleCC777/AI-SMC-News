@@ -1,10 +1,11 @@
 import { AlertConfig, BuyAlertItem, AlertTestResult } from '../types/alert';
-import { SmcAnalysisResult, AiNewsVerdict, MultiTimeframeAnalysis } from '../types/smc';
+import { SmcAnalysisResult, AiNewsVerdict, MultiTimeframeAnalysis, StockQuote } from '../types/smc';
 import { playBuyAlertSound, playTestChime } from '../utils/audioAlert';
 
 const CONFIG_KEY = 'ai_smc_alert_config';
 const ALERTS_HISTORY_KEY = 'ai_smc_alerts_history';
 const LAST_ALERT_TIMESTAMP_KEY = 'ai_smc_last_alert_timestamps';
+const ACTIVE_TRIGGERED_KEY = 'ai_smc_active_triggered_alerts';
 
 const DEFAULT_CONFIG: AlertConfig = {
   soundEnabled: true,
@@ -24,6 +25,34 @@ const DEFAULT_CONFIG: AlertConfig = {
   requireWickConfirmation: false
 };
 
+export interface WatchlistSetupSummary {
+  symbol: string;
+  displaySymbol: string;
+  name: string;
+  thaiName: string;
+  currentPrice: number;
+  buyZoneMin: number;
+  buyZoneMax: number;
+  stopLossPrice: number;
+  takeProfit1Price: number;
+  takeProfit2Price: number;
+  rrRatio: number;
+  confidenceScore: number;
+  timeframe: string;
+  lastUpdated: number;
+  isNearTp: boolean;
+  isReachedTp: boolean;
+  inBuyZone: boolean;
+}
+
+export interface ActiveTriggeredState {
+  symbol: string;
+  type: 'BUY' | 'TP';
+  triggeredAt: number;
+  price: number;
+  targetPrice: number;
+}
+
 type AlertListener = (newAlert: BuyAlertItem) => void;
 
 class AlertManager {
@@ -31,6 +60,9 @@ class AlertManager {
   private alerts: BuyAlertItem[] = [];
   private listeners: Set<AlertListener> = new Set();
   private lastAlertsBySymbol: Record<string, number> = {};
+  private activeTriggeredAlerts: Record<string, ActiveTriggeredState> = {};
+  private watchlistSetups: Map<string, WatchlistSetupSummary> = new Map();
+  private isSyncingServer: boolean = false;
 
   constructor() {
     this.loadState();
@@ -66,8 +98,68 @@ class AlertManager {
       console.warn('[AlertManager] Failed to load timestamps from storage:', e);
     }
 
-    // Attempt to sync config from backend
+    try {
+      const savedActive = localStorage.getItem(ACTIVE_TRIGGERED_KEY);
+      if (savedActive) {
+        this.activeTriggeredAlerts = JSON.parse(savedActive);
+      }
+    } catch (e) {
+      console.warn('[AlertManager] Failed to load active triggers from storage:', e);
+    }
+
+    // Attempt to sync config and setups from backend
     this.syncConfigFromBackend();
+    this.syncWatchlistSetups();
+  }
+
+  private saveActiveTriggers() {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(ACTIVE_TRIGGERED_KEY, JSON.stringify(this.activeTriggeredAlerts));
+    } catch (e) {}
+  }
+
+  /**
+   * Check if an alert of given type has already been triggered for this symbol
+   */
+  public isAlertActive(symbol: string, type: 'BUY' | 'TP'): boolean {
+    const key = `${symbol.toUpperCase()}-${type.toUpperCase()}`;
+    return Boolean(this.activeTriggeredAlerts[key]);
+  }
+
+  /**
+   * Mark alert as triggered (single alert guarantee)
+   */
+  public markAlertActive(symbol: string, type: 'BUY' | 'TP', price: number, targetPrice: number) {
+    const key = `${symbol.toUpperCase()}-${type.toUpperCase()}`;
+    this.activeTriggeredAlerts[key] = {
+      symbol: symbol.toUpperCase(),
+      type,
+      triggeredAt: Date.now(),
+      price,
+      targetPrice
+    };
+    this.saveActiveTriggers();
+  }
+
+  /**
+   * Clear triggered status when price leaves the zone (hysteresis reset)
+   */
+  public clearAlertActive(symbol: string, type: 'BUY' | 'TP') {
+    const key = `${symbol.toUpperCase()}-${type.toUpperCase()}`;
+    if (this.activeTriggeredAlerts[key]) {
+      delete this.activeTriggeredAlerts[key];
+      this.saveActiveTriggers();
+    }
+  }
+
+  /**
+   * Reset all triggered states (re-arm all alerts)
+   */
+  public resetAllTriggered() {
+    this.activeTriggeredAlerts = {};
+    this.saveActiveTriggers();
+    fetch('/api/alerts/reset-triggered', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
   }
 
   private async syncConfigFromBackend() {
@@ -82,6 +174,63 @@ class AlertManager {
       }
     } catch (e) {
       // Offline or dev mode fallback
+    }
+  }
+
+  /**
+   * Sync 1D SMC setups for all watchlist stocks from backend
+   */
+  public async syncWatchlistSetups(): Promise<WatchlistSetupSummary[]> {
+    try {
+      const res = await fetch('/api/alerts/watchlist-status');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          for (const s of json.data) {
+            this.watchlistSetups.set(s.displaySymbol.toUpperCase(), s);
+          }
+          return json.data;
+        }
+      }
+    } catch (e) {
+      // fallback
+    }
+    return Array.from(this.watchlistSetups.values());
+  }
+
+  /**
+   * Sync background alerts generated on the server
+   */
+  public async syncServerAlerts(): Promise<void> {
+    if (this.isSyncingServer) return;
+    this.isSyncingServer = true;
+    try {
+      const res = await fetch('/api/alerts/history');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          const serverAlerts: BuyAlertItem[] = json.data;
+          let hasNew = false;
+          for (const sAlert of serverAlerts) {
+            const exists = this.alerts.some(a => a.id === sAlert.id || (a.symbol === sAlert.symbol && a.alertType === sAlert.alertType && Math.abs(a.timestamp - sAlert.timestamp) < 60000));
+            if (!exists) {
+              this.alerts = [sAlert, ...this.alerts].slice(0, 50);
+              hasNew = true;
+              // Play chime and notify UI if not seen
+              if (this.config.soundEnabled) {
+                playBuyAlertSound();
+              }
+              this.notifyListeners(sAlert);
+            }
+          }
+          if (hasNew) {
+            localStorage.setItem(ALERTS_HISTORY_KEY, JSON.stringify(this.alerts));
+          }
+        }
+      }
+    } catch (e) {
+    } finally {
+      this.isSyncingServer = false;
     }
   }
 
@@ -140,11 +289,143 @@ class AlertManager {
   }
 
   /**
-   * Evaluates if a stock analysis triggers a Smart Money Buy Signal
-   * STRICT CRITERIA:
-   * 1. NEVER alert on 15M. Must analyze 3 Timeframes (1D, 4H, 1H).
-   * 2. AI Confidence score must be >= 75% (เข้าซื้อได้ โอกาสกำไรสูง).
-   * 3. Price must be inside the Institutional Buy Zone (derived from 1D/4H).
+   * Background Watchlist Evaluator:
+   * Evaluates ALL quotes in the watchlist without requiring the user to click into that stock.
+   * Guarantees that each alert triggers EXACTLY ONCE per event.
+   */
+  public evaluateWatchlistQuotes(quotes: StockQuote[]): BuyAlertItem[] {
+    const triggeredList: BuyAlertItem[] = [];
+
+    for (const q of quotes) {
+      const sym = q.symbol.replace(/\.BK$/i, '').toUpperCase();
+      const setup = this.watchlistSetups.get(sym);
+      if (!setup || q.price <= 0) continue;
+
+      const currentPrice = q.price;
+      const tpPrice = setup.takeProfit2Price;
+      const buyMin = setup.buyZoneMin;
+      const buyMax = setup.buyZoneMax;
+
+      // ─────────────────────────────────────────────────────────────
+      // 1. EVALUATE TP ALERT FOR WATCHLIST STOCK (เตือนที่ -2% แค่ครั้งเดียว)
+      // ─────────────────────────────────────────────────────────────
+      const isNearTp = tpPrice > 0 && currentPrice >= (tpPrice * 0.98);
+
+      if (isNearTp) {
+        if (!this.isAlertActive(sym, 'TP')) {
+          // Trigger once!
+          this.markAlertActive(sym, 'TP', currentPrice, tpPrice);
+
+          const now = Date.now();
+          const alertItem: BuyAlertItem = {
+            id: `alert-tp-${sym}-${now}`,
+            timestamp: now,
+            symbol: sym,
+            companyName: setup.name || sym,
+            currentPrice,
+            buyZoneMin: buyMin,
+            buyZoneMax: buyMax,
+            targetPrice6M: setup.takeProfit1Price,
+            targetPrice1Y: tpPrice,
+            stopLossPrice: setup.stopLossPrice,
+            confidenceScore: 78,
+            volumeBuyRatio: 55,
+            volumeDelta: 1000000,
+            wickRejection: false,
+            timeframe: '1D SMC (Watchlist Monitor)',
+            alertType: 'TP',
+            sellZoneMin: setup.takeProfit1Price,
+            sellZoneMax: tpPrice,
+            title: `🎯 ใกล้ถึงโซน TP: ${sym} ราคา $${currentPrice.toFixed(2)} เข้าใกล้เป้า $${tpPrice.toFixed(2)} (เตือนตั้งแต่ -2%)`,
+            message: `ราคา $${currentPrice.toFixed(2)} เข้าใกล้โซนทำกำไร Take Profit (TP: $${tpPrice.toFixed(2)}) แนะนำเตรียมทยอยแบ่งขาย (เตือนแค่ครั้งเดียว)`,
+            read: false,
+            multiTimeframe: {
+              alignmentText: '✓ ตรวจพบจากการเฝ้าระวังอัตโนมัติใน Watchlist (ไม่ต้องกดเข้าไปดู)',
+              items: [
+                { tf: '1D', label: 'รายวัน', score: 78, badge: '🟢 เข้าใกล้โซนทำกำไร TP', trend: 'BULLISH' }
+              ]
+            }
+          };
+
+          this.alerts = [alertItem, ...this.alerts].slice(0, 50);
+          localStorage.setItem(ALERTS_HISTORY_KEY, JSON.stringify(this.alerts));
+
+          if (this.config.soundEnabled) {
+            playBuyAlertSound();
+          }
+          this.dispatchExternalAlerts(alertItem);
+          this.notifyListeners(alertItem);
+          triggeredList.push(alertItem);
+        }
+      } else {
+        // Price dropped safely below TP - reset trigger for future runs
+        if (tpPrice > 0 && currentPrice < tpPrice * 0.95 && this.isAlertActive(sym, 'TP')) {
+          this.clearAlertActive(sym, 'TP');
+        }
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // 2. EVALUATE BUY ALERT FOR WATCHLIST STOCK (เตือนโซนซื้อแค่ครั้งเดียว)
+      // ─────────────────────────────────────────────────────────────
+      const inBuyZone = buyMin > 0 && currentPrice >= buyMin * 0.995 && currentPrice <= buyMax * 1.005;
+
+      if (inBuyZone) {
+        if (!this.isAlertActive(sym, 'BUY')) {
+          this.markAlertActive(sym, 'BUY', currentPrice, buyMin);
+
+          const now = Date.now();
+          const alertItem: BuyAlertItem = {
+            id: `alert-buy-${sym}-${now}`,
+            timestamp: now,
+            symbol: sym,
+            companyName: setup.name || sym,
+            currentPrice,
+            buyZoneMin: buyMin,
+            buyZoneMax: buyMax,
+            targetPrice6M: setup.takeProfit1Price,
+            targetPrice1Y: tpPrice,
+            stopLossPrice: setup.stopLossPrice,
+            confidenceScore: 78,
+            volumeBuyRatio: 55,
+            volumeDelta: 1000000,
+            wickRejection: false,
+            timeframe: '1D SMC (Watchlist Monitor)',
+            alertType: 'BUY',
+            sellZoneMin: setup.takeProfit1Price,
+            sellZoneMax: tpPrice,
+            title: `🟢 จุดซื้อสถาบัน: ${sym} ย่อแตะโซนช้อน $${buyMin.toFixed(2)}–$${buyMax.toFixed(2)}`,
+            message: `ราคา $${currentPrice.toFixed(2)} เข้ากรอบสะสมของถูก Smart Money เรียบร้อยแล้ว (เตือนแค่ครั้งเดียว)`,
+            read: false,
+            multiTimeframe: {
+              alignmentText: '✓ ตรวจพบจากการเฝ้าระวังอัตโนมัติใน Watchlist (ไม่ต้องกดเข้าไปดู)',
+              items: [
+                { tf: '1D', label: 'รายวัน', score: 78, badge: '🟢 เข้าซื้อได้ โอกาสกำไรสูง', trend: 'BULLISH' }
+              ]
+            }
+          };
+
+          this.alerts = [alertItem, ...this.alerts].slice(0, 50);
+          localStorage.setItem(ALERTS_HISTORY_KEY, JSON.stringify(this.alerts));
+
+          if (this.config.soundEnabled) {
+            playBuyAlertSound();
+          }
+          this.dispatchExternalAlerts(alertItem);
+          this.notifyListeners(alertItem);
+          triggeredList.push(alertItem);
+        }
+      } else {
+        if (buyMax > 0 && (currentPrice > buyMax * 1.03 || (setup.stopLossPrice > 0 && currentPrice < setup.stopLossPrice)) && this.isAlertActive(sym, 'BUY')) {
+          this.clearAlertActive(sym, 'BUY');
+        }
+      }
+    }
+
+    return triggeredList;
+  }
+
+  /**
+   * Evaluates if active stock analysis triggers a signal (Single-alert guarantee)
    */
   public evaluateSignal(
     data: SmcAnalysisResult | null,
@@ -153,19 +434,15 @@ class AlertManager {
   ): BuyAlertItem | null {
     if (!data || !aiVerdict) return null;
 
-    // ── REQUIREMENT 1: MUST ANALYZE ALL 3 TIMEFRAMES (1D, 4H, 1H) BEFORE ALERTING ──
-    // Never send 15M alerts. Wait until 1D, 4H, and 1H have all finished loading and analyzing!
     const snapshots = aiVerdict.multiTimeframe?.snapshots || [];
     const has1d = snapshots.some(s => s.timeframe === '1d') || Boolean(multiTfData?.['1d']);
     const has4h = snapshots.some(s => s.timeframe === '4h') || Boolean(multiTfData?.['4h']);
     const has1h = snapshots.some(s => s.timeframe === '1h') || Boolean(multiTfData?.['1h']);
 
     if (!has1d || !has4h || !has1h) {
-      // Still loading or missing 3-Timeframe confluence analysis - do not alert prematurely!
       return null;
     }
 
-    // ── REQUIREMENT 2: USE INSTITUTIONAL TIMEFRAME (1D OR 4H) FOR TRADE LEVELS (NEVER 15M) ──
     const institutionalData = multiTfData?.['1d']
       || (data.timeframe === '1d' ? data : null)
       || multiTfData?.['4h']
@@ -179,7 +456,7 @@ class AlertManager {
 
     const plan = institutionalData.summary.simpleTradePlan;
     const buyZone = plan.buyZone;
-    const symbol = data.symbol;
+    const symbol = data.symbol.replace(/\.BK$/i, '').toUpperCase();
     const currentPrice = data.summary.keyLevels.currentPrice;
 
     // ── SELL ZONE / TAKE PROFIT (TP) TARGETS ──
@@ -190,7 +467,6 @@ class AlertManager {
     const tp1Price = luxAlgoSetup?.takeProfit1?.price ?? plan.sellZone?.minPrice ?? Number((sellMin * 0.95).toFixed(2));
 
     const now = Date.now();
-    const cooldownMs = 15 * 60 * 1000; // 15 minutes
 
     // ── CONSTRUCT 3-TIMEFRAME SNAPSHOTS (1D, 4H, 1H) ──
     const tfOrder: ('1d' | '4h' | '1h')[] = ['1d', '4h', '1h'];
@@ -232,12 +508,19 @@ class AlertManager {
       netDelta: 0
     };
 
-    // ── 1. EVALUATE TAKE PROFIT (TP) ALERT (เตือนเมื่อใกล้ถึงโซน TP ตั้งแต่ -2%) ──
-    // เช่น หาก TP อยู่ที่ 287.20 ระบบจะเริ่มแจ้งเตือนตั้งแต่ $281.45 (287.20 * 0.98 หรือระยะห่าง <= 2%)
+    // ─────────────────────────────────────────────────────────────
+    // 1. EVALUATE TAKE PROFIT (TP) ALERT (เตือนที่ -2% แค่ครั้งเดียว!)
+    // ─────────────────────────────────────────────────────────────
     const isNearTpZone = sellMin > 0 && currentPrice >= (sellMin * 0.98);
-    const lastTpTriggered = this.lastAlertsBySymbol[`${symbol}-TP`] || this.lastAlertsBySymbol[`${symbol}-SELL_HH`] || 0;
 
-    if (isNearTpZone && (now - lastTpTriggered >= cooldownMs)) {
+    if (isNearTpZone) {
+      // Check if already active
+      if (this.isAlertActive(symbol, 'TP')) {
+        return null; // ALERTED ONCE! Do not repeat!
+      }
+
+      this.markAlertActive(symbol, 'TP', currentPrice, targetTp);
+
       const alertItem: BuyAlertItem = {
         id: `alert-tp-${symbol}-${now}`,
         timestamp: now,
@@ -258,15 +541,12 @@ class AlertManager {
         sellZoneMin: tp1Price,
         sellZoneMax: targetTp,
         title: `🎯 ใกล้ถึงโซน TP: ${symbol} ราคา $${currentPrice.toFixed(2)} เข้าใกล้เป้า $${targetTp.toFixed(2)} (เตือนตั้งแต่ -2%)`,
-        message: `ราคา $${currentPrice.toFixed(2)} เข้าใกล้โซนทำกำไร Take Profit (TP: $${targetTp.toFixed(2)}) แนะนำเตรียมทยอยแบ่งขาย (TP 1: $${tp1Price.toFixed(2)}, TP 2: $${targetTp.toFixed(2)})`,
+        message: `ราคา $${currentPrice.toFixed(2)} เข้าใกล้โซนทำกำไร Take Profit (TP: $${targetTp.toFixed(2)}) แนะนำเตรียมทยอยแบ่งขาย (เตือนแค่ครั้งเดียว)`,
         read: false,
         multiTimeframe
       };
 
-      this.lastAlertsBySymbol[`${symbol}-TP`] = now;
-      this.lastAlertsBySymbol[`${symbol}-SELL_HH`] = now;
-      localStorage.setItem(LAST_ALERT_TIMESTAMP_KEY, JSON.stringify(this.lastAlertsBySymbol));
-      this.alerts = [alertItem, ...this.alerts].slice(0, 30);
+      this.alerts = [alertItem, ...this.alerts].slice(0, 50);
       localStorage.setItem(ALERTS_HISTORY_KEY, JSON.stringify(this.alerts));
 
       if (this.config.soundEnabled) {
@@ -275,9 +555,16 @@ class AlertManager {
       this.dispatchExternalAlerts(alertItem);
       this.notifyListeners(alertItem);
       return alertItem;
+    } else {
+      // Reset when price falls safely below 95% of TP
+      if (targetTp > 0 && currentPrice < targetTp * 0.95 && this.isAlertActive(symbol, 'TP')) {
+        this.clearAlertActive(symbol, 'TP');
+      }
     }
 
-    // ── 2. EVALUATE BUY ALERT (เข้าสู่โซนช้อนซื้อ Smart Money) ──
+    // ─────────────────────────────────────────────────────────────
+    // 2. EVALUATE BUY ALERT (เตือนโซนซื้อแค่ครั้งเดียว!)
+    // ─────────────────────────────────────────────────────────────
     const confidence = aiVerdict.confidenceScore;
     const requiredThreshold = Math.max(75, this.config.minConfidenceScore);
     if (confidence < requiredThreshold) {
@@ -285,7 +572,16 @@ class AlertManager {
     }
 
     const inBuyZone = currentPrice >= buyZone.minPrice * 0.995 && currentPrice <= buyZone.maxPrice * 1.005;
-    if (!inBuyZone) return null;
+    if (!inBuyZone) {
+      if (currentPrice > buyZone.maxPrice * 1.03 || (plan.cutLoss.price > 0 && currentPrice < plan.cutLoss.price)) {
+        this.clearAlertActive(symbol, 'BUY');
+      }
+      return null;
+    }
+
+    if (this.isAlertActive(symbol, 'BUY')) {
+      return null; // ALERTED ONCE! Do not repeat!
+    }
 
     if (this.config.requireVolumeConfirmation && volumeFlow.buyRatio < 50) {
       return null;
@@ -304,10 +600,7 @@ class AlertManager {
       return null;
     }
 
-    const lastBuyTriggered = this.lastAlertsBySymbol[`${symbol}-BUY`] || this.lastAlertsBySymbol[symbol] || 0;
-    if (now - lastBuyTriggered < cooldownMs) {
-      return null;
-    }
+    this.markAlertActive(symbol, 'BUY', currentPrice, buyZone.minPrice);
 
     const alertItem: BuyAlertItem = {
       id: `alert-buy-${symbol}-${now}`,
@@ -329,15 +622,12 @@ class AlertManager {
       sellZoneMin: sellMin,
       sellZoneMax: sellMax,
       title: `🟢 จุดซื้อสถาบันผสาน 3 Timeframes: ${symbol} แตะโซนช้อน $${buyZone.minPrice.toFixed(2)}–$${buyZone.maxPrice.toFixed(2)}`,
-      message: `ราคา $${currentPrice.toFixed(2)} เข้ากรอบสะสมของถูก Smart Money พร้อม AI มั่นใจ 3-TF สูง ${confidence}% (1D:${tfItems[0].score}% | 4H:${tfItems[1].score}% | 1H:${tfItems[2].score}%)`,
+      message: `ราคา $${currentPrice.toFixed(2)} เข้ากรอบสะสมของถูก Smart Money พร้อม AI มั่นใจ 3-TF สูง ${confidence}% (เตือนแค่ครั้งเดียว)`,
       read: false,
       multiTimeframe
     };
 
-    this.lastAlertsBySymbol[`${symbol}-BUY`] = now;
-    this.lastAlertsBySymbol[symbol] = now;
-    localStorage.setItem(LAST_ALERT_TIMESTAMP_KEY, JSON.stringify(this.lastAlertsBySymbol));
-    this.alerts = [alertItem, ...this.alerts].slice(0, 30);
+    this.alerts = [alertItem, ...this.alerts].slice(0, 50);
     localStorage.setItem(ALERTS_HISTORY_KEY, JSON.stringify(this.alerts));
 
     if (this.config.soundEnabled) {
@@ -381,16 +671,10 @@ class AlertManager {
     }
   }
 
-  /**
-   * Test Sound chime
-   */
   public testSound(): void {
     playTestChime();
   }
 
-  /**
-   * Test specific webhook channel
-   */
   public async testChannel(
     channel: 'discord' | 'telegram' | 'line' | 'line-bot',
     currentConfig?: AlertConfig,

@@ -5,6 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import stocksRouter from './routes/stocks.js';
 import alertsRouter from './routes/alerts.js';
+import { BackgroundAlertScanner } from './services/backgroundAlertScanner.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,4 +60,8 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`[AI-SMC-News] Server running at http://localhost:${PORT}`);
+  // Start automated 24/7 background alert monitor for all watchlist stocks
+  BackgroundAlertScanner.init().catch(err => {
+    console.error('[BackgroundScanner] Initialization error:', err);
+  });
 });
