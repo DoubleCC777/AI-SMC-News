@@ -1004,10 +1004,10 @@ export class NotificationService {
             altText: isTpAlert
               ? `🎯 [TP ALERT] ${data.symbol} ใกล้ถึงเป้าทำกำไร! (${curr}${data.currentPrice.toFixed(2)}) • ถึงเป้า ${displayConfidence}% (ใกล้ถึง TP)`
               : data.confidenceScore >= 75
-                ? `🟢 [BUY ALERT] ${data.symbol} เข้าซื้อได้ โอกาสกำไรสูง! ($${data.currentPrice.toFixed(2)}) • AI ${data.confidenceScore}%`
+                ? `🟢 [BUY ALERT] ${data.symbol} เข้าซื้อได้ โอกาสกำไรสูง! (${curr}${data.currentPrice.toFixed(2)}) • AI ${data.confidenceScore}% (${tierLabelShort})`
                 : data.confidenceScore >= 65
-                  ? `🟡 [ACCUMULATE] ${data.symbol} ทยอยสะสม แบ่งไม้เข้าซื้อ ($${data.currentPrice.toFixed(2)}) • AI ${data.confidenceScore}%`
-                  : `📊 [AI·SMC] ${data.symbol} ($${data.currentPrice.toFixed(2)}) • AI ${data.confidenceScore}% (${tierLabelShort})`,
+                  ? `🟡 [ACCUMULATE] ${data.symbol} ทยอยสะสม แบ่งไม้เข้าซื้อ (${curr}${data.currentPrice.toFixed(2)}) • AI ${data.confidenceScore}% (${tierLabelShort})`
+                  : `📊 [AI·SMC] ${data.symbol} (${curr}${data.currentPrice.toFixed(2)}) • AI ${data.confidenceScore}% (${tierLabelShort})`,
             contents: flexBubble,
           },
         ],

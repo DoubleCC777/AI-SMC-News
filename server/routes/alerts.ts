@@ -200,10 +200,10 @@ router.post('/reset-triggered', (req: Request, res: Response) => {
 router.post('/trigger-stock', async (req: Request, res: Response) => {
   const { symbol, alertType } = req.body;
   try {
-    const payload = await BackgroundAlertScanner.sendStockAlertNow(symbol || 'KBANK', alertType || 'TP');
+    const payload = await BackgroundAlertScanner.sendStockAlertNow(symbol || 'KBANK', alertType || 'AUTO');
     res.json({
       success: true,
-      message: `ส่งการ์ดแจ้งเตือน ${symbol || 'KBANK'} (${alertType || 'TP'}) แบบ 3-Timeframe (วิเคราะห์หารสาม) เรียบร้อยแล้ว! 🟢`,
+      message: `ส่งการ์ดแจ้งเตือน ${symbol || 'KBANK'} (${payload.alertType}) แบบ 3-Timeframe (วิเคราะห์หารสาม) เรียบร้อยแล้ว! 🟢`,
       data: payload
     });
   } catch (err: any) {

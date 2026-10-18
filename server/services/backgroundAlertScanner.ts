@@ -518,7 +518,7 @@ export class BackgroundAlertScanner {
   /**
    * Immediately analyzes and dispatches a full 3-timeframe alert for a specified stock
    */
-  public static async sendStockAlertNow(symbol: string, alertType: 'BUY' | 'TP' = 'TP'): Promise<any> {
+  public static async sendStockAlertNow(symbol: string, alertType: 'BUY' | 'TP' | 'AUTO' = 'AUTO'): Promise<any> {
     const sym = symbol.replace(/\.BK$/i, '').toUpperCase();
     let setup = this.setups.get(sym);
     if (!setup) {
@@ -530,7 +530,6 @@ export class BackgroundAlertScanner {
     }
 
     const cfg = this.getConfig();
-    const isTp = alertType === 'TP';
     const isThai = sym.endsWith('.BK') || ['KBANK', 'SCB', 'TISCO', 'BBL', 'PTT', 'CPALL', 'AOT', 'DELTA', 'GULF'].includes(sym);
     const curr = isThai ? '฿' : '$';
 
@@ -539,6 +538,24 @@ export class BackgroundAlertScanner {
     const tpConfidence = (targetForTp > 0 && setup.currentPrice > 0)
       ? Math.min(100, Math.max(90, Math.round((setup.currentPrice / targetForTp) * 100)))
       : 98;
+
+    // Auto-detect real status based on actual live SMC data
+    let isTp = false;
+    if (alertType === 'AUTO') {
+      isTp = Boolean(setup.isNearTp || setup.isReachedTp);
+    } else {
+      isTp = alertType === 'TP';
+    }
+
+    const notesText = isTp
+      ? `🎯 ใกล้ถึงโซน TP: ราคา ${curr}${setup.currentPrice.toFixed(2)} เข้าใกล้เป้าสถาบัน ${curr}${targetForTp.toFixed(2)}`
+      : setup.confidenceScore >= 75
+        ? `🟢 จุดเข้าซื้อสถาบัน: ราคา ${curr}${setup.currentPrice.toFixed(2)} แตะโซน Discount OTE ${curr}${setup.buyZoneMin.toFixed(2)} - ${curr}${setup.buyZoneMax.toFixed(2)}`
+        : setup.confidenceScore >= 65
+          ? `🟡 โซนทยอยสะสม: ราคา ${curr}${setup.currentPrice.toFixed(2)} แบ่งไม้เข้าซื้อตามโซนสถาบัน ${curr}${setup.buyZoneMin.toFixed(2)} - ${curr}${setup.buyZoneMax.toFixed(2)}`
+          : setup.confidenceScore >= 51
+            ? `🟠 ควรรอย่อ: ราคา ${curr}${setup.currentPrice.toFixed(2)} ยังไม่ถึงโซนได้เปรียบ ห้ามไล่ราคา`
+            : `🔴 เสี่ยงสูง: ราคา ${curr}${setup.currentPrice.toFixed(2)} อยู่นอกโซนเข้าซื้อ ควรรอดูโครงสร้างราคา`;
 
     const payload: DispatchAlertPayload = {
       symbol: sym,
@@ -557,9 +574,7 @@ export class BackgroundAlertScanner {
       alertType: isTp ? 'TP' : 'BUY',
       sellZoneMin: setup.takeProfit1Price,
       sellZoneMax: setup.takeProfit2Price,
-      notes: isTp
-        ? `🎯 ใกล้ถึงโซน TP (เตือนตั้งแต่ 98% = ${curr}${tpThresholdVal.toFixed(0)}): ราคา ${curr}${setup.currentPrice.toFixed(2)} เข้าใกล้เป้าสถาบัน ${curr}${targetForTp.toFixed(2)}`
-        : `🟢 จุดเข้าซื้อสถาบัน: ราคา ${curr}${setup.currentPrice.toFixed(2)} ย่อแตะโซน Discount OTE ${curr}${setup.buyZoneMin.toFixed(2)} - ${curr}${setup.buyZoneMax.toFixed(2)}`,
+      notes: notesText,
       multiTimeframe: setup.multiTimeframe
     };
 
@@ -572,6 +587,28 @@ export class BackgroundAlertScanner {
    */
   private static async dispatchAlert(alert: DispatchAlertPayload, cfg: any) {
     const isTp = alert.alertType === 'TP';
+    const isThai = alert.symbol.endsWith('.BK') || ['KBANK', 'SCB', 'TISCO', 'BBL', 'PTT', 'CPALL', 'AOT', 'DELTA', 'GULF'].includes(alert.symbol.replace(/\.BK$/i, ''));
+    const curr = isThai ? '฿' : '$';
+
+    let title = '';
+    let message = '';
+    if (isTp) {
+      title = `🎯 ใกล้ถึงโซน TP: ${alert.symbol} ราคา ${curr}${alert.currentPrice.toFixed(2)} เข้าใกล้เป้า ${curr}${alert.targetPrice1Y.toFixed(2)}`;
+      message = `ราคา ${curr}${alert.currentPrice.toFixed(2)} เข้าใกล้โซนทำกำไร Take Profit (${curr}${alert.targetPrice1Y.toFixed(2)}) แนะนำเตรียมทยอยแบ่งขาย`;
+    } else if (alert.confidenceScore >= 75) {
+      title = `🟢 จุดซื้อสถาบัน: ${alert.symbol} ย่อแตะโซนช้อน ${curr}${alert.buyZoneMin.toFixed(2)}–${curr}${alert.buyZoneMax.toFixed(2)}`;
+      message = `ราคา ${curr}${alert.currentPrice.toFixed(2)} เข้าสู่โซน OTE Discount สถาบัน Smart Money โอกาสกำไรสูง`;
+    } else if (alert.confidenceScore >= 65) {
+      title = `🟡 ทยอยสะสม: ${alert.symbol} แบ่งไม้เข้าซื้อ ${curr}${alert.buyZoneMin.toFixed(2)}–${curr}${alert.buyZoneMax.toFixed(2)}`;
+      message = `ราคา ${curr}${alert.currentPrice.toFixed(2)} อยู่ในโซนทยอยสะสม แนะนำแบ่งไม้เข้าซื้อตามกลยุทธ์ SMC`;
+    } else if (alert.confidenceScore >= 51) {
+      title = `🟠 ควรรอย่อ: ${alert.symbol} ราคา ${curr}${alert.currentPrice.toFixed(2)}`;
+      message = `ราคา ${curr}${alert.currentPrice.toFixed(2)} ยังไม่ถึงโซนช้อนซื้อได้เปรียบ ห้ามไล่ราคา ควรรอย่อตัว`;
+    } else {
+      title = `🔴 เสี่ยงสูง: ${alert.symbol} ราคา ${curr}${alert.currentPrice.toFixed(2)}`;
+      message = `ราคา ${curr}${alert.currentPrice.toFixed(2)} อยู่นอกโซนได้เปรียบ ไม่ควรเข้าซื้อ ควรรอดูโครงสร้างราคา`;
+    }
+
     const alertItem = {
       id: `alert-${isTp ? 'tp' : 'buy'}-${alert.symbol}-${Date.now()}`,
       timestamp: Date.now(),
@@ -591,12 +628,8 @@ export class BackgroundAlertScanner {
       alertType: alert.alertType,
       sellZoneMin: alert.sellZoneMin,
       sellZoneMax: alert.sellZoneMax,
-      title: isTp
-        ? `🎯 ใกล้ถึงโซน TP: ${alert.symbol} ราคา $${alert.currentPrice.toFixed(2)} เข้าใกล้เป้า $${alert.targetPrice1Y.toFixed(2)} (เตือนตั้งแต่ -2%)`
-        : `🟢 จุดซื้อสถาบัน: ${alert.symbol} ย่อแตะโซนช้อน $${alert.buyZoneMin.toFixed(2)}–$${alert.buyZoneMax.toFixed(2)}`,
-      message: isTp
-        ? `ราคา $${alert.currentPrice.toFixed(2)} เข้าใกล้โซนทำกำไร Take Profit (TP: $${alert.targetPrice1Y.toFixed(2)}) แนะนำเตรียมทยอยแบ่งขาย (เตือนแค่ครั้งเดียว)`
-        : `ราคา $${alert.currentPrice.toFixed(2)} เข้าสู่โซน OTE Discount สถาบัน Smart Money เรียบร้อยแล้ว (เตือนแค่ครั้งเดียว)`,
+      title,
+      message,
       read: false,
       multiTimeframe: alert.multiTimeframe
     };
