@@ -196,4 +196,19 @@ router.post('/reset-triggered', (req: Request, res: Response) => {
   res.json({ success: true, message: 'รีเซ็ตสถานะการแจ้งเตือนเรียบร้อยแล้ว' });
 });
 
+// POST /api/alerts/trigger-stock - Immediately send full 3-timeframe MTF alert to enabled channels
+router.post('/trigger-stock', async (req: Request, res: Response) => {
+  const { symbol, alertType } = req.body;
+  try {
+    const payload = await BackgroundAlertScanner.sendStockAlertNow(symbol || 'KBANK', alertType || 'TP');
+    res.json({
+      success: true,
+      message: `ส่งการ์ดแจ้งเตือน ${symbol || 'KBANK'} (${alertType || 'TP'}) แบบ 3-Timeframe (วิเคราะห์หารสาม) เรียบร้อยแล้ว! 🟢`,
+      data: payload
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;

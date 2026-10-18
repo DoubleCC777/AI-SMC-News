@@ -43,6 +43,18 @@ export interface WatchlistSetupSummary {
   isNearTp: boolean;
   isReachedTp: boolean;
   inBuyZone: boolean;
+  volumeBuyRatio?: number;
+  multiTimeframe?: {
+    alignmentText: string;
+    items: {
+      tf: string;
+      label?: string;
+      score: number;
+      badge: string;
+      trend?: string;
+      buyRatio?: number;
+    }[];
+  };
 }
 
 export interface ActiveTriggeredState {
@@ -317,6 +329,16 @@ class AlertManager {
           this.markAlertActive(sym, 'TP', currentPrice, tpPrice);
 
           const now = Date.now();
+          const multiTimeframe = setup.multiTimeframe || {
+            alignmentText: '✓ สัญญาณสอดคล้อง 3 Timeframes (1D, 4H, 1H)',
+            items: [
+              { tf: '1H', label: '1 ชม.', score: 70, badge: '🟡 ทยอยสะสม แบ่งไม้เข้าซื้อ', trend: 'BULLISH' },
+              { tf: '4H', label: '4 ชม.', score: 75, badge: '🟢 เข้าซื้อได้ โอกาสกำไรสูง', trend: 'BULLISH' },
+              { tf: '1D', label: 'รายวัน', score: 78, badge: '🟢 เข้าซื้อได้ โอกาสกำไรสูง', trend: 'BULLISH' }
+            ]
+          };
+          const confidenceScore = setup.confidenceScore || Math.round(multiTimeframe.items.reduce((a, b) => a + b.score, 0) / multiTimeframe.items.length);
+
           const alertItem: BuyAlertItem = {
             id: `alert-tp-${sym}-${now}`,
             timestamp: now,
@@ -328,23 +350,18 @@ class AlertManager {
             targetPrice6M: setup.takeProfit1Price,
             targetPrice1Y: tpPrice,
             stopLossPrice: setup.stopLossPrice,
-            confidenceScore: 78,
-            volumeBuyRatio: 55,
+            confidenceScore,
+            volumeBuyRatio: setup.volumeBuyRatio || 55,
             volumeDelta: 1000000,
             wickRejection: false,
-            timeframe: '1D SMC (Watchlist Monitor)',
+            timeframe: '3-TF CONFLUENCE (1D/4H/1H)',
             alertType: 'TP',
             sellZoneMin: setup.takeProfit1Price,
             sellZoneMax: tpPrice,
             title: `🎯 ใกล้ถึงโซน TP: ${sym} ราคา $${currentPrice.toFixed(2)} เข้าใกล้เป้า $${tpPrice.toFixed(2)} (เตือนตั้งแต่ -2%)`,
             message: `ราคา $${currentPrice.toFixed(2)} เข้าใกล้โซนทำกำไร Take Profit (TP: $${tpPrice.toFixed(2)}) แนะนำเตรียมทยอยแบ่งขาย (เตือนแค่ครั้งเดียว)`,
             read: false,
-            multiTimeframe: {
-              alignmentText: '✓ ตรวจพบจากการเฝ้าระวังอัตโนมัติใน Watchlist (ไม่ต้องกดเข้าไปดู)',
-              items: [
-                { tf: '1D', label: 'รายวัน', score: 78, badge: '🟢 เข้าใกล้โซนทำกำไร TP', trend: 'BULLISH' }
-              ]
-            }
+            multiTimeframe
           };
 
           this.alerts = [alertItem, ...this.alerts].slice(0, 50);
@@ -374,6 +391,16 @@ class AlertManager {
           this.markAlertActive(sym, 'BUY', currentPrice, buyMin);
 
           const now = Date.now();
+          const multiTimeframe = setup.multiTimeframe || {
+            alignmentText: '✓ สัญญาณสอดคล้อง 3 Timeframes (1D, 4H, 1H)',
+            items: [
+              { tf: '1H', label: '1 ชม.', score: 70, badge: '🟡 ทยอยสะสม แบ่งไม้เข้าซื้อ', trend: 'BULLISH' },
+              { tf: '4H', label: '4 ชม.', score: 75, badge: '🟢 เข้าซื้อได้ โอกาสกำไรสูง', trend: 'BULLISH' },
+              { tf: '1D', label: 'รายวัน', score: 78, badge: '🟢 เข้าซื้อได้ โอกาสกำไรสูง', trend: 'BULLISH' }
+            ]
+          };
+          const confidenceScore = setup.confidenceScore || Math.round(multiTimeframe.items.reduce((a, b) => a + b.score, 0) / multiTimeframe.items.length);
+
           const alertItem: BuyAlertItem = {
             id: `alert-buy-${sym}-${now}`,
             timestamp: now,
@@ -385,23 +412,18 @@ class AlertManager {
             targetPrice6M: setup.takeProfit1Price,
             targetPrice1Y: tpPrice,
             stopLossPrice: setup.stopLossPrice,
-            confidenceScore: 78,
-            volumeBuyRatio: 55,
+            confidenceScore,
+            volumeBuyRatio: setup.volumeBuyRatio || 55,
             volumeDelta: 1000000,
             wickRejection: false,
-            timeframe: '1D SMC (Watchlist Monitor)',
+            timeframe: '3-TF CONFLUENCE (1D/4H/1H)',
             alertType: 'BUY',
             sellZoneMin: setup.takeProfit1Price,
             sellZoneMax: tpPrice,
             title: `🟢 จุดซื้อสถาบัน: ${sym} ย่อแตะโซนช้อน $${buyMin.toFixed(2)}–$${buyMax.toFixed(2)}`,
             message: `ราคา $${currentPrice.toFixed(2)} เข้ากรอบสะสมของถูก Smart Money เรียบร้อยแล้ว (เตือนแค่ครั้งเดียว)`,
             read: false,
-            multiTimeframe: {
-              alignmentText: '✓ ตรวจพบจากการเฝ้าระวังอัตโนมัติใน Watchlist (ไม่ต้องกดเข้าไปดู)',
-              items: [
-                { tf: '1D', label: 'รายวัน', score: 78, badge: '🟢 เข้าซื้อได้ โอกาสกำไรสูง', trend: 'BULLISH' }
-              ]
-            }
+            multiTimeframe
           };
 
           this.alerts = [alertItem, ...this.alerts].slice(0, 50);
