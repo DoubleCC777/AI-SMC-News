@@ -222,36 +222,61 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
     Math.max(0, ((keyLevels.currentPrice - premiumDiscount.low) / totalRange) * 100)
   );
 
-  // คำนวณจุดเทรด LuxAlgo SMC
+  // คำนวณจุดเทรด LuxAlgo SMC (สำหรับ Spot Long Trading)
   const luxSetup = summary.luxAlgoTradeSetup;
+  const isLuxLong = Boolean(luxSetup && luxSetup.setupType === 'LONG' && luxSetup.entryZone);
 
   // 1. จุดเข้า (Entry Zone)
-  const entryMin = luxSetup?.entryZone?.min ?? buyZone75?.minPrice ?? simpleTradePlan?.buyZone?.minPrice ?? Number((keyLevels.currentPrice * 0.96).toFixed(2));
-  const entryMax = luxSetup?.entryZone?.max ?? buyZone75?.maxPrice ?? simpleTradePlan?.buyZone?.maxPrice ?? Number((keyLevels.currentPrice * 0.99).toFixed(2));
-  const rawEntryLabel = luxSetup?.entryZone?.label ?? buyZone75?.label ?? 'Discount Zone (< 50% Equilibrium)';
+  let entryMin = (isLuxLong ? luxSetup!.entryZone.min : null) ?? buyZone75?.minPrice ?? simpleTradePlan?.buyZone?.minPrice ?? Number((keyLevels.currentPrice * 0.95).toFixed(2));
+  let entryMax = (isLuxLong ? luxSetup!.entryZone.max : null) ?? buyZone75?.maxPrice ?? simpleTradePlan?.buyZone?.maxPrice ?? Number((keyLevels.currentPrice * 0.98).toFixed(2));
+  if (entryMin > entryMax) {
+    const tmp = entryMin;
+    entryMin = entryMax;
+    entryMax = tmp;
+  }
+  const rawEntryLabel = (isLuxLong ? luxSetup!.entryZone.label : null) ?? buyZone75?.label ?? 'Discount Zone (< 50% Equilibrium)';
   const cleanEntryLabel = rawEntryLabel.replace(/^[\s🟢🛒•\-]+/, '').trim();
 
   // 2. จุดคัท (Stop Loss)
-  const slPrice = luxSetup?.stopLoss?.price ?? simpleTradePlan?.cutLoss?.price ?? Number((entryMin * 0.985).toFixed(2));
-  const slLossPct = luxSetup?.stopLoss?.lossPercent ?? simpleTradePlan?.cutLoss?.lossPercent ?? -9.4;
-  const rawSlLabel = luxSetup?.stopLoss?.label ?? 'ใต้ Strong Low สถาบัน';
+  let slPrice = (isLuxLong && luxSetup!.stopLoss?.price && luxSetup!.stopLoss.price < entryMin ? luxSetup!.stopLoss.price : null)
+    ?? simpleTradePlan?.cutLoss?.price
+    ?? Number((entryMin * 0.95).toFixed(2));
+  if (slPrice >= entryMin) {
+    slPrice = Number((entryMin * 0.95).toFixed(2));
+  }
+  const avgEntryCalc = (entryMin + entryMax) / 2;
+  const slLossPct = Number((((slPrice - avgEntryCalc) / avgEntryCalc) * 100).toFixed(1));
+  const rawSlLabel = (isLuxLong ? luxSetup!.stopLoss?.label : null) ?? 'ใต้ Strong Low สถาบัน';
   const cleanSlLabel = rawSlLabel.replace(/^[\s🛡️🛑•\-]+/, '').trim();
 
-  // 3. จุดออก (Take Profit)
-  const tp2Price = luxSetup?.takeProfit2?.price ?? simpleTradePlan?.sellZone?.maxPrice ?? simpleTradePlan?.sellTargets?.target1Year?.price ?? Number((keyLevels.currentPrice * 1.165).toFixed(2));
-  const tp1Price = luxSetup?.takeProfit1?.price ?? simpleTradePlan?.sellZone?.minPrice ?? Number(((entryMax + tp2Price) / 2).toFixed(2));
-  const tpPrice = tp2Price; // Main TP target ($287.20)
-  const tpGainPct = luxSetup?.takeProfit2?.gainPercent ?? simpleTradePlan?.sellTargets?.target1Year?.gainPercent ?? 16.5;
-  const rawTpLabel = luxSetup?.takeProfit2?.label ?? 'TP2: Weak High (เป้าหมายสถาบัน)';
+  // 3. จุดออก (Take Profit - ต้องสูงกว่าราคาปัจจุบันและสูงกว่าราคาเข้าซื้อเสมอ)
+  let tp2Price = (isLuxLong && luxSetup!.takeProfit2?.price && luxSetup!.takeProfit2.price > keyLevels.currentPrice ? luxSetup!.takeProfit2.price : null)
+    ?? simpleTradePlan?.sellZone?.maxPrice
+    ?? simpleTradePlan?.sellTargets?.target1Year?.price
+    ?? Number((Math.max(keyLevels.currentPrice * 1.15, entryMax * 1.15)).toFixed(2));
+  if (tp2Price <= keyLevels.currentPrice || tp2Price <= entryMax) {
+    tp2Price = Number((Math.max(keyLevels.currentPrice * 1.15, entryMax * 1.15)).toFixed(2));
+  }
+
+  let tp1Price = (isLuxLong && luxSetup!.takeProfit1?.price && luxSetup!.takeProfit1.price > entryMax && luxSetup!.takeProfit1.price < tp2Price ? luxSetup!.takeProfit1.price : null)
+    ?? simpleTradePlan?.sellZone?.minPrice
+    ?? Number(((entryMax + tp2Price) / 2).toFixed(2));
+  if (tp1Price <= entryMax || tp1Price >= tp2Price) {
+    tp1Price = Number(((entryMax + tp2Price) / 2).toFixed(2));
+  }
+
+  const tpPrice = tp2Price; // Main TP target
+  const tpGainPct = Number((((tpPrice - avgEntryCalc) / avgEntryCalc) * 100).toFixed(1));
+  const rawTpLabel = (isLuxLong ? luxSetup!.takeProfit2?.label : null) ?? 'TP2: Weak High (เป้าหมายสถาบัน)';
   const cleanTpLabel = rawTpLabel.replace(/^[\s🎯•\-]+/, '').trim();
-  const rrRatio = luxSetup?.riskRewardRatio ?? simpleTradePlan?.riskRewardRatio ?? '1.76';
+  const rrRatio = Number(Math.max(1.1, (tpPrice - avgEntryCalc) / Math.max(0.01, avgEntryCalc - slPrice)).toFixed(2));
 
   // คำนวณจุดขาย TP (Take Profit) และระยะห่าง (เตือนตั้งแต่ -2%)
-  const distToTpPercent = tpPrice > 0 && keyLevels?.currentPrice
+  const distToTpPercent = tpPrice > keyLevels.currentPrice
     ? Number((((tpPrice - keyLevels.currentPrice) / keyLevels.currentPrice) * 100).toFixed(1))
     : 0;
-  const isReachedTp = Boolean(keyLevels?.currentPrice && tpPrice > 0 && keyLevels.currentPrice >= tpPrice);
-  const isNearTp = Boolean(!isReachedTp && tpPrice > 0 && distToTpPercent <= 2.0);
+  const isReachedTp = Boolean(keyLevels.currentPrice >= tpPrice && tpPrice > entryMax);
+  const isNearTp = Boolean(!isReachedTp && tpPrice > keyLevels.currentPrice && distToTpPercent <= 2.0 && distToTpPercent > 0 && tpPrice > entryMax);
 
   return (
     <div className="bg-[#070a12] border border-white/[0.08] rounded-2xl p-3.5 sm:p-4 flex flex-col h-full overflow-y-auto space-y-3.5 no-scrollbar shadow-2xl shadow-black/50 select-none min-w-[340px] sm:min-w-[380px] shrink-0">

@@ -912,134 +912,151 @@ export class SmcEngine {
         tradingActionAdvice = `กลยุทธ์ Long Setup: รอดูการพักตัวเข้าสู่โซน Discount ต่ำกว่า $${premiumDiscount.equilibrium} เพื่อความได้เปรียบทาง Risk:Reward ไม่แนะนำให้ไล่ราคาในโซน Premium`;
       }
     } else if (overallBias === 'STRONG_BEARISH' || overallBias === 'BEARISH' || trendBias === 'bearish') {
-      const entryMin = nearestSupply ? nearestSupply.bottom : Number((premiumDiscount.equilibrium * 1.01).toFixed(2));
-      const entryMax = nearestSupply ? nearestSupply.top : Number((premiumDiscount.equilibrium * 1.05).toFixed(2));
+      // สำหรับหุ้น Spot (Long-Only): แม้โครงสร้างเป็นขาลง แผนคือดักรอช้อนซื้อใน Deep Discount Demand เมื่อย่อลึก
+      const pdRange = premiumDiscount.high - premiumDiscount.low;
+      const deepOteMin = Number((premiumDiscount.high - pdRange * 0.786).toFixed(2));
+      const deepOteMax = Number((premiumDiscount.high - pdRange * 0.618).toFixed(2));
+
+      const entryMin = nearestDemand ? nearestDemand.bottom : (support1 > 0 && support1 < currentPrice ? support1 : deepOteMin);
+      const entryMax = nearestDemand ? nearestDemand.top : Math.min(deepOteMax, Number((currentPrice * 0.97).toFixed(2)));
       const avgEntry = (entryMin + entryMax) / 2;
 
-      const slPrice = strongWeakLevels?.strongHigh
-        ? Number((strongWeakLevels.strongHigh * 1.01).toFixed(2))
-        : Number((entryMax * 1.015).toFixed(2));
+      const slPrice = Number((Math.min(entryMin * 0.95, premiumDiscount.low * 0.98)).toFixed(2));
       const lossPct = Number((((slPrice - avgEntry) / avgEntry) * 100).toFixed(1));
 
-      const tp1Price = Number(premiumDiscount.equilibrium.toFixed(2));
-      const tp1Gain = Number((((avgEntry - tp1Price) / avgEntry) * 100).toFixed(1));
+      // เป้าหมายทำกำไรขาขึ้น (TP) ต้องอยู่สูงกว่าราคาปัจจุบันเสมอ เพื่อดักขายเมื่อราคาดีดตัว
+      const tp1Price = Number(Math.max(currentPrice * 1.05, premiumDiscount.equilibrium).toFixed(2));
+      const tp1Gain = Number((((tp1Price - avgEntry) / avgEntry) * 100).toFixed(1));
 
-      const tp2Price = strongWeakLevels?.weakLow
-        ? Number(strongWeakLevels.weakLow.toFixed(2))
-        : Number((support1 * 1.005).toFixed(2));
-      const tp2Gain = Number((((avgEntry - tp2Price) / avgEntry) * 100).toFixed(1));
+      const tp2Price = Number(Math.max(currentPrice * 1.15, resistance1, premiumDiscount.high).toFixed(2));
+      const tp2Gain = Number((((tp2Price - avgEntry) / avgEntry) * 100).toFixed(1));
 
-      const rr = Number(Math.max(0.1, (avgEntry - tp2Price) / Math.max(0.01, slPrice - avgEntry)).toFixed(2));
+      const rr = Number(Math.max(1.1, (tp2Price - avgEntry) / Math.max(0.01, avgEntry - slPrice)).toFixed(2));
 
       luxAlgoTradeSetup = {
-        setupType: 'SHORT',
-        title: '🔴 แผนขายลดพอร์ต / Short Setup: ดักขายใน Premium Zone สถาบัน',
-        theme: 'rose',
+        setupType: 'LONG',
+        title: '🟠 แผนดักช้อนซื้อสะสม (Dip Buy Setup): รอย่อลึกใน Demand สถาบัน',
+        theme: 'amber',
         entryZone: {
           min: entryMin,
           max: entryMax,
-          label: nearestSupply ? 'Bearish Order Block (Supply สถาบัน)' : 'Premium Zone (> 50% Equilibrium)',
-          rationale: nearestSupply
-            ? `จุดดักขายทำกำไรลดพอร์ต หรือเปิด Short เมื่อราคารีบาวด์ทดสอบ Bearish OB $${entryMin.toFixed(2)} - $${entryMax.toFixed(2)}`
-            : `จุดขายในโซนของแพง Premium Zone สูงกว่า $${premiumDiscount.equilibrium.toFixed(2)}`
+          label: nearestDemand ? 'Bullish Order Block (Demand สถาบัน)' : 'Deep Discount OTE Zone',
+          rationale: nearestDemand
+            ? `ดักซื้อในกรอบ Demand $${entryMin.toFixed(2)} - $${entryMax.toFixed(2)} รอรับของถูกเมื่อราคาย่อตัวลึก`
+            : `ดักซื้อในโซน Deep Discount OTE ปลอดภัยต่ำกว่า $${deepOteMax.toFixed(2)}`
         },
         stopLoss: {
           price: slPrice,
-          label: strongWeakLevels?.strongHigh ? '🛡️ เหนือ Strong High สถาบัน' : '🛑 สูงกว่าขอบบน Order Block',
+          label: '🛑 ต่ำกว่าฐานแนวรับสำคัญ',
           lossPercent: lossPct,
-          rationale: strongWeakLevels?.strongHigh
-            ? `หากราคาทะลุ Strong High $${strongWeakLevels.strongHigh.toFixed(2)} โครงสร้างขาลงจะถูกทำลายทันที (Bullish CHoCH Invalidation) ต้องยอมแพ้`
-            : `ตัดขาดทุนหากราคาทะลุ $${slPrice.toFixed(2)}`
+          rationale: `หากหลุดแนวรับ $${slPrice.toFixed(2)} ให้ตัดขาดทุนทันทีเพื่อความปลอดภัย`
         },
         takeProfit1: {
           price: tp1Price,
-          label: '⚖️ TP1: 50% Equilibrium (จุดสมดุลราคา)',
+          label: '⚖️ TP1: รีบาวด์สู่ Equilibrium',
           gainPercent: tp1Gain,
-          rationale: `จุดสมดุลราคา $${tp1Price.toFixed(2)} ทยอยแบ่งปิดทำกำไร 50%`
+          rationale: `จุดสมดุลราคาแฟร์แวลู $${tp1Price.toFixed(2)} แบ่งขายล็อกกำไรไม้แรก 50%`
         },
         takeProfit2: {
           price: tp2Price,
-          label: strongWeakLevels?.weakLow ? '🎯 TP2: Weak Low (เป้าหมายขาลง)' : '🎯 TP2: แนวรับสวิงโลว์เดิม',
+          label: '🎯 TP2: โซนขายทำกำไรหลักสถาบัน',
           gainPercent: tp2Gain,
-          rationale: strongWeakLevels?.weakLow
-            ? `Weak Low $${tp2Price.toFixed(2)} คือเป้าหมายอัลกอริทึมที่ Smart Money จะกวาด Sell-Side Liquidity`
-            : `เป้าหมายปิดกำไรที่แนวรับ $${tp2Price.toFixed(2)}`
+          rationale: `เป้าหมายขายทำกำไรหลักรอบใหญ่ที่ $${tp2Price.toFixed(2)}`
         },
         riskRewardRatio: rr,
         confirmationChecklist: [
-          `โครงสร้าง Swing Trend เป็นขาลง หรือมีสัญญาณ Bearish Break ยืนยัน`,
-          `ราคารีบาวด์เข้าสู่โซนของแพง Premium Zone เหนือ $${premiumDiscount.equilibrium.toFixed(2)}`,
-          `พบแรงปฏิเสธราคาใน Bearish Order Block หรือ Bearish FVG`,
-          `ตั้ง Stop Loss เหนือ 🛡️ Strong High ($${slPrice.toFixed(2)})`,
-          `เป้าหมายหลักมุ่งหน้าสู่ 🎯 Weak Low ($${tp2Price.toFixed(2)})`
+          `รอดูการย่อตัวพักฐานลงสู่แนวรับ Demand ด้านล่างอย่างใจเย็น`,
+          `มีสัญญาณ Rejection หรือ Bullish Pinbar ยืนยันที่แนวรับ`,
+          `ตั้ง Stop Loss ต่ำกว่า $${slPrice.toFixed(2)} เสมอ`,
+          `เป้าหมายขายทำกำไรมุ่งหน้าสู่ $${tp2Price.toFixed(2)}`
         ]
       };
 
-      const entryText = nearestSupply
-        ? `จุดขาย/Short: ดักขายเมื่อราคารีบาวด์เข้าสู่ Bearish Order Block ที่ $${nearestSupply.bottom.toFixed(2)} – $${nearestSupply.top.toFixed(2)} ในโซน Premium`
-        : `จุดขาย/ลดพอร์ต: ขายในโซน Premium สูงกว่า $${premiumDiscount.equilibrium.toFixed(2)}`;
-      const slText = strongWeakLevels?.strongHigh
-        ? `จุดตัดขาดทุน (SL): เหนือแนวต้านสถาบัน 🛡️ Strong High ที่ $${(strongWeakLevels.strongHigh * 1.01).toFixed(2)}`
-        : `จุดตัดขาดทุน (SL): สูงกว่า $${entryMax * 1.015}`;
-      const tpText = strongWeakLevels?.weakLow
-        ? `จุดออกทำกำไร (TP): เป้าหมายแรกที่ Equilibrium $${premiumDiscount.equilibrium.toFixed(2)} และเป้าหมายขาลงที่ 🎯 Weak Low $${strongWeakLevels.weakLow.toFixed(2)}`
-        : `จุดออกทำกำไร (TP): แนวรับถัดไปที่ $${support1.toFixed(2)}`;
+      const entryText = `จุดดักซื้อสะสม: แนะนำรอย่อตัวลงมาทดสอบโซน Demand ที่ $${entryMin.toFixed(2)} – $${entryMax.toFixed(2)}`;
+      const slText = `จุดตัดขาดทุน (SL): ต่ำกว่า $${slPrice.toFixed(2)}`;
+      const tpText = `จุดออกทำกำไร (TP): เป้าหมายรีบาวด์ที่ $${tp1Price.toFixed(2)} และเป้าหมายรอบใหญ่ที่ $${tp2Price.toFixed(2)}`;
 
-      thaiAnalysis = `วิเคราะห์โครงสร้างตามโมเดล Smart Money Concepts (SMC) [LuxAlgo]: หุ้น ${symbol} มีแรงกดดันฝั่งขายเป็นหลัก ล่าสุดเกิด ${latestStructure} ยืนยันการควบคุมของสถาบันฝั่ง Sell ปัจจุบันราคาอยู่ที่ $${currentPrice} (${zoneStatus})${strongWeakText}.\n\n🎯 สรุปจุดเข้า-จุดออก LuxAlgo:\n• ${entryText}\n• ${slText}\n• ${tpText}\n• อัตราส่วนความคุ้มค่า (R:R Ratio): 1 : ${rr}`;
-
-      if (nearestSupply) {
-        const entryLow = nearestSupply.bottom;
-        const entryHigh = nearestSupply.top;
-        const stopLoss = slPrice;
-        const takeProfit = tp2Price;
-        const riskReward = rr;
-        tradeSetup = {
-          direction: 'SHORT', entryLow: Number(entryLow.toFixed(2)), entryHigh: Number(entryHigh.toFixed(2)), stopLoss, takeProfit,
-          riskReward, confidence: overallBias === 'STRONG_BEARISH' ? 82 : 72,
-          note: riskReward >= 1.5 ? 'รอราคารีบาวด์เข้าสู่ Supply ก่อน เพื่อให้จุดตัดขาดทุนอยู่ใกล้' : 'โซนนี้มี R:R จำกัด ควรรอราคาเข้าใกล้ Supply มากขึ้น'
-        };
-        tradingActionAdvice = `กลยุทธ์ Short/เฝ้าระวัง: หากราคารีบาวด์ขึ้นทดสอบ Bearish Order Block ที่ $${nearestSupply.bottom.toFixed(2)} - $${nearestSupply.top.toFixed(2)} สามารถพิจารณาเป็นจุดขายหรือ Short โดยตั้ง Stop Loss เหนือ Strong High $${slPrice.toFixed(2)} และมีเป้าหมายทำกำไรที่ Weak Low $${tp2Price.toFixed(2)}`;
-      } else {
-        tradingActionAdvice = `กลยุทธ์: แนะนำชะลอการเข้าซื้อ รอให้เกิด Bullish CHoCH กลับตัวยืนยันบนโครงสร้างราคาก่อน`;
-      }
+      thaiAnalysis = `วิเคราะห์โครงสร้างตามโมเดล Smart Money Concepts (SMC) [LuxAlgo]: หุ้น ${symbol} อยู่ในช่วงพักตัวสะสมพลัง ล่าสุดราคาอยู่ที่ $${currentPrice} (${zoneStatus})${strongWeakText}.\n\n🎯 สรุปจุดเข้า-จุดออก LuxAlgo:\n• ${entryText}\n• ${slText}\n• ${tpText}\n• อัตราส่วนความคุ้มค่า (R:R Ratio): 1 : ${rr}`;
+      tradingActionAdvice = `กลยุทธ์ Dip Buy: แนะนำรอย่อลึกเข้าสู่โซน Discount $${entryMin.toFixed(2)} - $${entryMax.toFixed(2)} แล้วทยอยแบ่งไม้เข้าซื้อสะสม`;
     } else {
+      const pdRange = premiumDiscount.high - premiumDiscount.low;
+      const entryMin = Number((premiumDiscount.low + pdRange * 0.1).toFixed(2));
+      const entryMax = Number((premiumDiscount.low + pdRange * 0.382).toFixed(2));
+      const avgEntry = (entryMin + entryMax) / 2;
+
+      const slPrice = Number((premiumDiscount.low * 0.96).toFixed(2));
+      const lossPct = Number((((slPrice - avgEntry) / avgEntry) * 100).toFixed(1));
+
+      const tp1Price = Number(Math.max(currentPrice * 1.04, premiumDiscount.equilibrium).toFixed(2));
+      const tp1Gain = Number((((tp1Price - avgEntry) / avgEntry) * 100).toFixed(1));
+
+      const tp2Price = Number(Math.max(currentPrice * 1.12, premiumDiscount.high * 1.05).toFixed(2));
+      const tp2Gain = Number((((tp2Price - avgEntry) / avgEntry) * 100).toFixed(1));
+
+      const rr = Number(Math.max(1.1, (tp2Price - avgEntry) / Math.max(0.01, avgEntry - slPrice)).toFixed(2));
+
       luxAlgoTradeSetup = {
-        setupType: 'WAIT',
-        title: '🟡 แผนรอสัญญาณ (Wait & See): ราคากำลังบีบตัวรอบจุด Equilibrium',
+        setupType: 'LONG',
+        title: '🟡 แผนรอจังหวะสะสม (Consolidation Long Setup): รอย่อเข้ากรอบ Discount',
         theme: 'amber',
         entryZone: {
-          min: premiumDiscount.low,
-          max: premiumDiscount.high,
-          label: 'กรอบสะสมพลัง Equilibrium',
-          rationale: `ราคายังแกว่งตัวรอบจุดสมดุล $${premiumDiscount.equilibrium.toFixed(2)} ยังไม่เลือกข้าง ควรรอให้เกิด BOS ชัดเจนก่อน`
+          min: entryMin,
+          max: entryMax,
+          label: 'กรอบสะสมล่าง Discount',
+          rationale: `ราคากำลังบีบตัวรอบจุดสมดุล $${premiumDiscount.equilibrium.toFixed(2)} ควรรอดักรับที่โซนล่าง $${entryMin.toFixed(2)} - $${entryMax.toFixed(2)}`
         },
         stopLoss: {
-          price: Number((premiumDiscount.low * 0.985).toFixed(2)),
+          price: slPrice,
           label: 'ฐานกรอบสวิงล่าง',
-          lossPercent: 2.5,
+          lossPercent: lossPct,
           rationale: 'จุดหลุดกรอบสะสม'
         },
         takeProfit1: {
-          price: Number(premiumDiscount.equilibrium.toFixed(2)),
-          label: 'จุดกึ่งกลางกรอบ',
-          gainPercent: 2.0,
-          rationale: 'สมดุลราคา'
+          price: tp1Price,
+          label: '⚖️ TP1: จุดกึ่งกลางกรอบ',
+          gainPercent: tp1Gain,
+          rationale: 'จุดสมดุลราคา'
         },
         takeProfit2: {
-          price: Number(premiumDiscount.high.toFixed(2)),
-          label: 'ยอดกรอบสวิงบน',
-          gainPercent: 4.5,
+          price: tp2Price,
+          label: '🎯 TP2: ยอดกรอบสวิงบน',
+          gainPercent: tp2Gain,
           rationale: 'แนวต้านบน'
         },
-        riskRewardRatio: 1.5,
+        riskRewardRatio: rr,
         confirmationChecklist: [
-          `รอให้แท่งเทียนปิดทะลุกรอบสวิง (Break of Structure BOS)`,
-          `สังเกตการสร้าง Order Block ฝั่งที่ชนะ`,
-          `รอเข้าในจังหวะ Retracement ครั้งแรก`
+          `รอให้ราคาย่อลงมาที่กรอบล่าง Discount ก่อนสะสม`,
+          `สังเกตแรงซื้อประคองราคา`,
+          `ตั้ง Stop Loss ต่ำกว่ากรอบ $${slPrice.toFixed(2)}`
         ]
       };
-      thaiAnalysis = `วิเคราะห์โครงสร้างตามโมเดล Smart Money Concepts (SMC) [LuxAlgo]: หุ้น ${symbol} อยู่ในช่วงพักตัวสะสมพลังรอบจุด Equilibrium $${premiumDiscount.equilibrium} ยังไม่มีทิศทางที่ชัดเจนจาก Smart Money${strongWeakText}. ควรรอสัญญาณ BOS หรือ CHoCH ก่อนเปิดสถานะ`;
-      tradingActionAdvice = `กลยุทธ์: แนะนำ Wait & See รอราคาเลือกข้างหรือรอให้เกิดการเบรก BOS / CHoCH ชัดเจนก่อนเข้าเทรด`;
+      thaiAnalysis = `วิเคราะห์โครงสร้างตามโมเดล Smart Money Concepts (SMC) [LuxAlgo]: หุ้น ${symbol} อยู่ในช่วงพักตัวสะสมพลังรอบจุด Equilibrium $${premiumDiscount.equilibrium} ยังไม่มีทิศทางที่ชัดเจนจาก Smart Money${strongWeakText}. ควรรอย่อรับในกรอบ Discount`;
+      tradingActionAdvice = `กลยุทธ์: แนะนำรอย่อตัวเข้าสู่โซน Discount ล่าง $${entryMin.toFixed(2)} - $${entryMax.toFixed(2)} ก่อนเข้าสะสม`;
+    }
+
+    // ──────────────────────────────────────────
+    // BULLETPROOF SPOT TRADING SANITY ENFORCEMENT
+    // ──────────────────────────────────────────
+    if (luxAlgoTradeSetup && luxAlgoTradeSetup.entryZone) {
+      if (luxAlgoTradeSetup.entryZone.min > luxAlgoTradeSetup.entryZone.max) {
+        const tmp = luxAlgoTradeSetup.entryZone.min;
+        luxAlgoTradeSetup.entryZone.min = luxAlgoTradeSetup.entryZone.max;
+        luxAlgoTradeSetup.entryZone.max = tmp;
+      }
+      if (luxAlgoTradeSetup.stopLoss.price >= luxAlgoTradeSetup.entryZone.min) {
+        luxAlgoTradeSetup.stopLoss.price = Number((luxAlgoTradeSetup.entryZone.min * 0.95).toFixed(2));
+      }
+      if (luxAlgoTradeSetup.takeProfit2.price <= currentPrice || luxAlgoTradeSetup.takeProfit2.price <= luxAlgoTradeSetup.entryZone.max) {
+        luxAlgoTradeSetup.takeProfit2.price = Number((Math.max(currentPrice * 1.15, luxAlgoTradeSetup.entryZone.max * 1.15)).toFixed(2));
+      }
+      if (luxAlgoTradeSetup.takeProfit1.price <= luxAlgoTradeSetup.entryZone.max || luxAlgoTradeSetup.takeProfit1.price >= luxAlgoTradeSetup.takeProfit2.price) {
+        luxAlgoTradeSetup.takeProfit1.price = Number(((luxAlgoTradeSetup.entryZone.max + luxAlgoTradeSetup.takeProfit2.price) / 2).toFixed(2));
+      }
+      const avgE = (luxAlgoTradeSetup.entryZone.min + luxAlgoTradeSetup.entryZone.max) / 2;
+      luxAlgoTradeSetup.stopLoss.lossPercent = Number((((luxAlgoTradeSetup.stopLoss.price - avgE) / avgE) * 100).toFixed(1));
+      luxAlgoTradeSetup.takeProfit1.gainPercent = Number((((luxAlgoTradeSetup.takeProfit1.price - avgE) / avgE) * 100).toFixed(1));
+      luxAlgoTradeSetup.takeProfit2.gainPercent = Number((((luxAlgoTradeSetup.takeProfit2.price - avgE) / avgE) * 100).toFixed(1));
+      luxAlgoTradeSetup.riskRewardRatio = Number(Math.max(1.1, (luxAlgoTradeSetup.takeProfit2.price - avgE) / Math.max(0.01, avgE - luxAlgoTradeSetup.stopLoss.price)).toFixed(2));
     }
 
     // ==========================================
