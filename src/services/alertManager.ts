@@ -182,9 +182,12 @@ class AlertManager {
     const symbol = data.symbol;
     const currentPrice = data.summary.keyLevels.currentPrice;
 
-    // ── SELL ZONE / HIGHER HIGH (HH) TARGETS ──
-    const sellMin = plan.sellZone?.minPrice ?? plan.sellTargets.target1Year.price;
-    const sellMax = plan.sellZone?.maxPrice ?? Number((sellMin * 1.06).toFixed(2));
+    // ── SELL ZONE / TAKE PROFIT (TP) TARGETS ──
+    const luxAlgoSetup = institutionalData.summary?.luxAlgoTradeSetup || data.summary?.luxAlgoTradeSetup;
+    const targetTp = luxAlgoSetup?.takeProfit2?.price ?? plan.sellZone?.minPrice ?? plan.sellTargets.target1Year.price;
+    const sellMin = targetTp;
+    const sellMax = luxAlgoSetup?.takeProfit2?.price ?? plan.sellZone?.maxPrice ?? Number((sellMin * 1.06).toFixed(2));
+    const tp1Price = luxAlgoSetup?.takeProfit1?.price ?? plan.sellZone?.minPrice ?? Number((sellMin * 0.95).toFixed(2));
 
     const now = Date.now();
     const cooldownMs = 15 * 60 * 1000; // 15 minutes
@@ -243,19 +246,19 @@ class AlertManager {
         currentPrice,
         buyZoneMin: buyZone.minPrice,
         buyZoneMax: buyZone.maxPrice,
-        targetPrice6M: plan.sellTargets.target1Year.price,
-        targetPrice1Y: sellMin,
-        stopLossPrice: plan.cutLoss.price,
+        targetPrice6M: tp1Price,
+        targetPrice1Y: targetTp,
+        stopLossPrice: luxAlgoSetup?.stopLoss?.price ?? plan.cutLoss.price,
         confidenceScore: aiVerdict.confidenceScore,
         volumeBuyRatio: volumeFlow.buyRatio,
         volumeDelta: volumeFlow.netDelta,
         wickRejection: false,
         timeframe: '3-TF CONFLUENCE (1D/4H/1H)',
         alertType: 'TP',
-        sellZoneMin: sellMin,
-        sellZoneMax: sellMax,
-        title: `🎯 ใกล้ถึงโซน TP: ${symbol} ราคา $${currentPrice.toFixed(2)} เข้าใกล้เป้า $${sellMin.toFixed(2)} (เตือนตั้งแต่ -2%)`,
-        message: `ราคา $${currentPrice.toFixed(2)} เข้าใกล้โซนทำกำไร Take Profit (TP) แนะนำเตรียมทยอยขาย ไม้ 1 ที่ $${sellMin.toFixed(2)} (TP 1) และ ไม้ 2 ที่ $${sellMax.toFixed(2)} (TP 2)`,
+        sellZoneMin: tp1Price,
+        sellZoneMax: targetTp,
+        title: `🎯 ใกล้ถึงโซน TP: ${symbol} ราคา $${currentPrice.toFixed(2)} เข้าใกล้เป้า $${targetTp.toFixed(2)} (เตือนตั้งแต่ -2%)`,
+        message: `ราคา $${currentPrice.toFixed(2)} เข้าใกล้โซนทำกำไร Take Profit (TP: $${targetTp.toFixed(2)}) แนะนำเตรียมทยอยแบ่งขาย (TP 1: $${tp1Price.toFixed(2)}, TP 2: $${targetTp.toFixed(2)})`,
         read: false,
         multiTimeframe
       };
