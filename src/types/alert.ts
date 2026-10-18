@@ -23,7 +23,7 @@ export interface AlertConfig {
 
 export interface MultiTfAlertSnapshot {
   tf: string; // '1D' | '4H' | '1H'
-  label: string; // '1D (รายวัน)', '4H (4 ชม.)', '1H (1 ชม.)'
+  label?: string; // '1D (รายวัน)', '4H (4 ชม.)', '1H (1 ชม.)'
   score: number; // e.g. 82
   badge: string; // 'เข้าซื้อได้ โอกาสกำไรสูง'
   trend?: string;

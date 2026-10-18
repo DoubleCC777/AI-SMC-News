@@ -693,7 +693,7 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
           </div>
 
           {/* 💡 การประเมิน: ควรถือต่อ หรือ ควรขายแล้ว? */}
-          {simpleTradePlan.holdAdvice && (
+          {simpleTradePlan && simpleTradePlan.holdAdvice && (
             <div
               className={`p-3 rounded-xl border text-xs leading-relaxed flex flex-col gap-1.5 shadow-md ${
                 simpleTradePlan.holdAdvice.theme === 'rose'
@@ -734,7 +734,7 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
           )}
 
           {/* Plain Thai Strategy Summary */}
-          {simpleTradePlan.plainThaiSummary && (
+          {simpleTradePlan && simpleTradePlan.plainThaiSummary && (
             <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] text-xs text-slate-300 leading-relaxed flex items-start gap-2">
               <Sparkles className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
               <span>{simpleTradePlan.plainThaiSummary}</span>
@@ -742,7 +742,7 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
           )}
 
           {/* Collapsible Technical Details (Fibonacci & OTE) */}
-          {simpleTradePlan.methodology && (
+          {simpleTradePlan && simpleTradePlan.methodology && (
             <div>
               <button
                 onClick={() => setShowMethodology(!showMethodology)}
