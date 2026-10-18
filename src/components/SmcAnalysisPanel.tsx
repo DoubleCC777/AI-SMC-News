@@ -277,6 +277,7 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
     : 0;
   const isReachedTp = Boolean(keyLevels.currentPrice >= tpPrice && tpPrice > entryMax);
   const isNearTp = Boolean(!isReachedTp && tpPrice > keyLevels.currentPrice && distToTpPercent <= 2.0 && distToTpPercent > 0 && tpPrice > entryMax);
+  const inBuyZone = Boolean(entryMin > 0 && keyLevels.currentPrice >= (entryMin * 0.99) && keyLevels.currentPrice <= (entryMax * 1.01));
 
   return (
     <div className="bg-[#070a12] border border-white/[0.08] rounded-2xl p-3.5 sm:p-4 flex flex-col h-full overflow-y-auto space-y-3.5 no-scrollbar shadow-2xl shadow-black/50 select-none min-w-[340px] sm:min-w-[380px] shrink-0">
@@ -549,112 +550,149 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
                 จุดเข้า - จุดออก ตามโมเดล LUXALGO SMC
               </span>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/30 font-bold">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-sky-500/15 text-sky-300 border border-sky-500/30 font-bold">
               R:R 1 : {rrRatio}
             </span>
           </div>
 
-          {/* 3-Column Clean Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 shrink-0">
-            {/* Card 1: จุดเข้า (Entry) */}
-            <div className="relative overflow-hidden bg-gradient-to-b from-[#0b1d16] via-[#07130f] to-[#040a08] border border-emerald-500/35 hover:border-emerald-500/60 rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.4),0_0_15px_rgba(16,185,129,0.08)] transition-all duration-300 group">
+          {/* Risk : Reward Visual Meter */}
+          <div className="p-2 rounded-xl bg-gradient-to-r from-rose-950/30 via-[#0a0f18] to-emerald-950/30 border border-white/[0.08] shadow-inner space-y-1.5">
+            <div className="flex items-center justify-between text-[10.5px] font-sans">
+              <span className="text-rose-400 font-bold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.8)]" />
+                ความเสี่ยง: {slLossPct}%
+              </span>
+              <span className="px-2 py-0.2 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/40 font-mono font-extrabold text-[10px]">
+                R:R 1 : {rrRatio}
+              </span>
+              <span className="text-emerald-400 font-bold flex items-center gap-1">
+                เป้าหมายกำไร: +{tpGainPct}%
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+              </span>
+            </div>
+            <div className="h-1.5 w-full bg-slate-800/80 rounded-full overflow-hidden flex shadow-inner border border-white/[0.05]">
+              <div
+                className="h-full bg-gradient-to-r from-rose-600 to-rose-400 transition-all duration-300"
+                style={{ width: `${Math.max(15, Math.min(45, (1 / (1 + rrRatio)) * 100))}%` }}
+                title={`ความเสี่ยง: 1.0x (${slLossPct}%)`}
+              />
+              <div
+                className="h-full bg-gradient-to-r from-emerald-500 to-teal-300 transition-all duration-300"
+                style={{ width: `${Math.min(85, Math.max(55, (rrRatio / (1 + rrRatio)) * 100))}%` }}
+                title={`กำไรเป้าหมาย: ${rrRatio}x (+${tpGainPct}%)`}
+              />
+            </div>
+          </div>
+
+          {/* 3-Column Luxury Cyber Cards (No Text Truncation) */}
+          <div className="grid grid-cols-1 min-[420px]:grid-cols-3 gap-2 shrink-0">
+            {/* Card 1: จุดเข้าซื้อ (Entry) */}
+            <div className="relative overflow-hidden bg-gradient-to-b from-[#062017]/90 via-[#04140e]/95 to-[#020a07] border border-emerald-500/40 hover:border-emerald-400/80 rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.5),0_0_15px_rgba(16,185,129,0.12)] transition-all duration-300 group">
               <div className="absolute -top-12 -right-12 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl pointer-events-none" />
               <div>
                 <div className="flex items-center justify-between gap-1 mb-1.5">
-                  <div className="flex items-center gap-1 min-w-0">
-                    <span className="text-[11px] shrink-0">🟢</span>
-                    <span className="text-[11.5px] sm:text-[12px] font-sans font-extrabold text-emerald-300 uppercase tracking-tight truncate">
-                      จุดเข้า (Entry)
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)] shrink-0" />
+                    <span className="text-[11px] font-sans font-black text-emerald-300 uppercase tracking-tight whitespace-nowrap">
+                      จุดเข้าซื้อ (Entry)
                     </span>
                   </div>
-                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/35 text-emerald-300 shrink-0 shadow-sm">
+                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 shrink-0 shadow-sm">
                     Discount
                   </span>
                 </div>
-                <div className="font-mono text-[13px] min-[360px]:text-[13.5px] sm:text-[14px] font-black text-emerald-300 tracking-tight whitespace-nowrap drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]">
-                  {curr}{entryMin.toFixed(2)} - {curr}{entryMax.toFixed(2)}
+                <div className="bg-black/40 rounded-xl px-2 py-1.5 border border-emerald-500/20 my-1 shadow-inner">
+                  <div className="text-[9px] text-emerald-400/80 font-sans font-medium flex items-center justify-between">
+                    <span>กรอบช้อนซื้อ OTE</span>
+                    {inBuyZone && (
+                      <span className="text-[8.5px] px-1 py-0.2 rounded bg-emerald-500/30 text-emerald-300 font-bold border border-emerald-500/40">
+                        แตะโซนแล้ว
+                      </span>
+                    )}
+                  </div>
+                  <div className="font-mono text-[12.5px] min-[360px]:text-[13px] font-black text-emerald-300 tracking-tight whitespace-nowrap flex items-center justify-between pt-0.5 drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]">
+                    <span>{curr}{entryMin.toFixed(2)}</span>
+                    <span className="text-emerald-500/60 text-[10px] font-sans font-bold">ถึง</span>
+                    <span>{curr}{entryMax.toFixed(2)}</span>
+                  </div>
                 </div>
-                <div className="text-[9.5px] font-mono text-emerald-400/95 mt-1 flex items-start gap-1 leading-snug">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block shrink-0 mt-1" />
+                <div className="text-[9.5px] font-sans text-emerald-400/95 flex items-start gap-1 leading-snug min-h-[26px]">
+                  <span className="shrink-0 text-[10px] mt-0.5">🛒</span>
                   <span className="break-words font-sans">{cleanEntryLabel || 'Discount Zone (< 50% Equilibrium)'}</span>
                 </div>
               </div>
-              <div className="mt-2.5 pt-2 border-t border-emerald-500/20 space-y-1.5 text-[10.5px] font-mono">
-                <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-emerald-950/30 border border-emerald-500/20 shadow-inner">
-                  <span className="text-slate-400 flex items-center gap-1.5 whitespace-nowrap">
-                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/25 text-emerald-300 border border-emerald-500/35">ไม้ 1</span>
-                    <span className="text-[9.5px] text-slate-400 font-sans">50%</span>
-                  </span>
-                  <span className="text-emerald-300 font-bold whitespace-nowrap">{curr}{entryMax.toFixed(2)}</span>
+              <div className="mt-2 pt-2 border-t border-emerald-500/20 space-y-1.5 text-[10px] font-mono">
+                <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-emerald-950/40 border border-emerald-500/20 shadow-inner">
+                  <span className="text-slate-300 font-bold">ไม้ 1 (50%)</span>
+                  <span className="text-emerald-300 font-extrabold">{curr}{entryMax.toFixed(2)}</span>
                 </div>
-                <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-emerald-950/30 border border-emerald-500/20 shadow-inner">
-                  <span className="text-slate-400 flex items-center gap-1.5 whitespace-nowrap">
-                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/25 text-emerald-300 border border-emerald-500/35">ไม้ 2</span>
-                    <span className="text-[9.5px] text-slate-400 font-sans">50%</span>
-                  </span>
-                  <span className="text-emerald-300 font-bold whitespace-nowrap">{curr}{entryMin.toFixed(2)}</span>
+                <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-emerald-950/40 border border-emerald-500/20 shadow-inner">
+                  <span className="text-slate-300 font-bold">ไม้ 2 (50%)</span>
+                  <span className="text-emerald-300 font-extrabold">{curr}{entryMin.toFixed(2)}</span>
                 </div>
               </div>
             </div>
 
             {/* Card 2: จุดคัท (SL) */}
-            <div className="relative overflow-hidden bg-gradient-to-b from-[#200c12] via-[#14080c] to-[#0a0406] border border-rose-500/35 hover:border-rose-500/60 rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.4),0_0_15px_rgba(244,63,94,0.08)] transition-all duration-300 group">
+            <div className="relative overflow-hidden bg-gradient-to-b from-[#240a12]/90 via-[#16060b]/95 to-[#0b0305] border border-rose-500/40 hover:border-rose-400/80 rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.5),0_0_15px_rgba(244,63,94,0.12)] transition-all duration-300 group">
               <div className="absolute -top-12 -right-12 w-24 h-24 bg-rose-500/10 rounded-full blur-xl pointer-events-none" />
               <div>
                 <div className="flex items-center justify-between gap-1 mb-1.5">
-                  <div className="flex items-center gap-1 min-w-0">
-                    <span className="text-[11px] shrink-0">🛑</span>
-                    <span className="text-[11.5px] sm:text-[12px] font-sans font-extrabold text-rose-300 uppercase tracking-tight truncate">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.9)] shrink-0" />
+                    <span className="text-[11px] font-sans font-black text-rose-300 uppercase tracking-tight whitespace-nowrap">
                       จุดคัท (SL)
                     </span>
                   </div>
-                  <span className="text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-rose-500/20 border border-rose-500/40 text-rose-300 shrink-0 shadow-sm">
+                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-rose-500/20 border border-rose-500/40 text-rose-300 shrink-0 shadow-sm">
                     {slLossPct}%
                   </span>
                 </div>
-                <div className="font-mono text-[14px] min-[360px]:text-[15px] sm:text-base font-black text-rose-300 tracking-tight whitespace-nowrap drop-shadow-[0_0_8px_rgba(244,63,94,0.3)]">
-                  {curr}{slPrice.toFixed(2)}
+                <div className="bg-black/40 rounded-xl px-2 py-1.5 border border-rose-500/20 my-1 shadow-inner">
+                  <div className="text-[9px] text-rose-400/80 font-sans font-medium">ราคาตัดขาดทุน (SL)</div>
+                  <div className="font-mono text-[14px] font-black text-rose-300 tracking-tight whitespace-nowrap drop-shadow-[0_0_8px_rgba(244,63,94,0.3)] pt-0.5">
+                    {curr}{slPrice.toFixed(2)}
+                  </div>
                 </div>
-                <div className="text-[9.5px] font-mono text-rose-400/95 mt-1 flex items-start gap-1 leading-snug">
+                <div className="text-[9.5px] font-sans text-rose-400/95 flex items-start gap-1 leading-snug min-h-[26px]">
                   <span className="shrink-0 text-[10px] mt-0.5">🛡️</span>
                   <span className="break-words font-sans">{cleanSlLabel || 'ใต้ Strong Low สถาบัน'}</span>
                 </div>
               </div>
-              <div className="mt-2.5 pt-2 border-t border-rose-500/20 space-y-1.5 text-[10.5px] font-mono">
-                <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-rose-950/30 border border-rose-500/20 shadow-inner">
-                  <span className="text-slate-400 whitespace-nowrap flex items-center gap-1">
-                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-rose-500/25 text-rose-300 border border-rose-500/35">ความเสี่ยง</span>
-                  </span>
-                  <span className="text-rose-400 font-bold whitespace-nowrap">{slLossPct}%</span>
+              <div className="mt-2 pt-2 border-t border-rose-500/20 space-y-1.5 text-[10px] font-mono">
+                <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-rose-950/40 border border-rose-500/20 shadow-inner">
+                  <span className="text-slate-300 font-bold font-sans">ความเสี่ยง</span>
+                  <span className="text-rose-400 font-extrabold">{slLossPct}%</span>
                 </div>
-                <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-rose-950/30 border border-rose-500/20 shadow-inner">
-                  <span className="text-slate-400 whitespace-nowrap flex items-center gap-1">
-                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-700/50 text-slate-300 border border-slate-600/35">กลยุทธ์</span>
-                  </span>
-                  <span className="text-slate-200 font-bold whitespace-nowrap font-sans text-[10px]">รักษาเงินต้น</span>
+                <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-rose-950/40 border border-rose-500/20 shadow-inner">
+                  <span className="text-slate-300 font-bold font-sans">กลยุทธ์</span>
+                  <span className="text-slate-100 font-bold font-sans">รักษาเงินต้น</span>
                 </div>
               </div>
             </div>
 
-            {/* Card 3: จุดออก (TP) พร้อมสถานะเตือนตั้งแต่ -2% */}
-            <div className="relative overflow-hidden bg-gradient-to-b from-[#081c24] via-[#061217] to-[#040a0d] border border-cyan-500/35 hover:border-cyan-500/60 rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.4),0_0_15px_rgba(6,182,212,0.08)] transition-all duration-300 group">
+            {/* Card 3: จุดทำกำไร (TP) พร้อมสถานะเตือนตั้งแต่ -2% */}
+            <div className="relative overflow-hidden bg-gradient-to-b from-[#0a1e28]/90 via-[#06131a]/95 to-[#020a0e] border border-cyan-500/40 hover:border-cyan-400/80 rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.5),0_0_15px_rgba(6,182,212,0.12)] transition-all duration-300 group">
               <div className="absolute -top-12 -right-12 w-24 h-24 bg-cyan-500/10 rounded-full blur-xl pointer-events-none" />
               <div>
                 <div className="flex items-center justify-between gap-1 mb-1.5">
-                  <div className="flex items-center gap-1 min-w-0">
-                    <span className="text-[11px] shrink-0">🎯</span>
-                    <span className="text-[11.5px] sm:text-[12px] font-sans font-extrabold text-cyan-300 uppercase tracking-tight truncate">
-                      จุดออก (TP)
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.9)] shrink-0" />
+                    <span className="text-[11px] font-sans font-black text-cyan-300 uppercase tracking-tight whitespace-nowrap">
+                      จุดทำกำไร (TP)
                     </span>
                   </div>
-                  <span className="text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 shrink-0 font-bold shadow-sm">
+                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 shrink-0 shadow-sm font-bold">
                     +{tpGainPct}%
                   </span>
                 </div>
-                <div className="font-mono text-[14px] min-[360px]:text-[15px] sm:text-base font-black text-cyan-300 tracking-tight whitespace-nowrap drop-shadow-[0_0_8px_rgba(6,182,212,0.3)]">
-                  {curr}{tpPrice.toFixed(2)}
+                <div className="bg-black/40 rounded-xl px-2 py-1.5 border border-cyan-500/20 my-1 shadow-inner">
+                  <div className="text-[9px] text-cyan-400/80 font-sans font-medium">เป้าหมายหลัก (TP2)</div>
+                  <div className="font-mono text-[14px] font-black text-cyan-300 tracking-tight whitespace-nowrap drop-shadow-[0_0_8px_rgba(6,182,212,0.3)] pt-0.5">
+                    {curr}{tpPrice.toFixed(2)}
+                  </div>
                 </div>
-                <div className="text-[9.5px] font-mono mt-1 flex items-start gap-1 leading-snug">
+                <div className="text-[9.5px] font-sans min-h-[26px] flex items-start gap-1 leading-snug">
                   {isReachedTp ? (
                     <>
                       <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping shrink-0 mt-1" />
@@ -663,30 +701,24 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
                   ) : isNearTp ? (
                     <>
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0 mt-1" />
-                      <span className="text-amber-300 font-bold break-words font-sans">⚠️ ใกล้ถึง TP แล้ว! (เตือนที่ -2%)</span>
+                      <span className="text-amber-300 font-bold break-words font-sans">⚠️ ใกล้ถึง TP แล้ว! (-2%)</span>
                     </>
                   ) : (
                     <>
                       <span className="shrink-0 text-[10px] mt-0.5">🎯</span>
-                      <span className="text-cyan-300/95 break-words font-sans">{cleanTpLabel || 'TP2: Weak High (เป้าหมายสถาบัน)'}</span>
+                      <span className="text-cyan-300/95 break-words font-sans">{cleanTpLabel || 'TP2: Weak High สถาบัน'}</span>
                     </>
                   )}
                 </div>
               </div>
-              <div className="mt-2.5 pt-2 border-t border-cyan-500/20 space-y-1.5 text-[10.5px] font-mono">
-                <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-cyan-950/30 border border-cyan-500/20 shadow-inner">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-cyan-500/25 text-cyan-300 border border-cyan-500/35 shrink-0">ไม้ 1</span>
-                    <span className="text-[9.5px] text-slate-400 font-sans truncate">TP 1</span>
-                  </div>
-                  <span className="text-cyan-300 font-bold whitespace-nowrap ml-1 shrink-0">{curr}{tp1Price.toFixed(2)}</span>
+              <div className="mt-2 pt-2 border-t border-cyan-500/20 space-y-1.5 text-[10px] font-mono">
+                <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-cyan-950/40 border border-cyan-500/20 shadow-inner">
+                  <span className="text-slate-300 font-bold">ไม้ 1 (TP1)</span>
+                  <span className="text-cyan-300 font-extrabold">{curr}{tp1Price.toFixed(2)}</span>
                 </div>
-                <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-cyan-950/30 border border-cyan-500/20 shadow-inner">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/25 text-emerald-300 border border-emerald-500/35 shrink-0">ไม้ 2</span>
-                    <span className="text-[9.5px] text-emerald-400/90 font-sans font-bold truncate">TP 2</span>
-                  </div>
-                  <span className="text-emerald-300 font-bold whitespace-nowrap ml-1 shrink-0">{curr}{tp2Price.toFixed(2)}</span>
+                <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-emerald-950/40 border border-emerald-500/20 shadow-inner">
+                  <span className="text-slate-300 font-bold">ไม้ 2 (TP2)</span>
+                  <span className="text-emerald-300 font-extrabold">{curr}{tp2Price.toFixed(2)}</span>
                 </div>
               </div>
             </div>
