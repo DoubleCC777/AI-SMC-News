@@ -504,17 +504,12 @@ const SmcAnalysisPanelComponent: React.FC<SmcAnalysisPanelProps> = ({
             <div className="relative overflow-hidden bg-gradient-to-b from-[#0a1814] via-[#081210] to-[#050b0a] border border-emerald-500/30 hover:border-emerald-500/50 rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.35)] transition-all duration-300 group">
               <div className="absolute -top-12 -right-12 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl pointer-events-none" />
               <div>
-                <div className="flex items-center justify-between gap-1 mb-1.5">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="w-5 h-5 rounded-md bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-[11px] shadow-[0_0_6px_rgba(16,185,129,0.25)] shrink-0">
-                      🛒
-                    </span>
-                    <span className="text-[11.5px] font-sans font-extrabold text-emerald-300 uppercase tracking-tight whitespace-nowrap">
-                      โซนซื้อ
-                    </span>
-                  </div>
-                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 shrink-0">
-                    OTE
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className="w-5 h-5 rounded-md bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-[11px] shadow-[0_0_6px_rgba(16,185,129,0.25)] shrink-0">
+                    🛒
+                  </span>
+                  <span className="text-[12px] font-sans font-extrabold text-emerald-300 uppercase tracking-tight whitespace-nowrap">
+                    โซนซื้อ
                   </span>
                 </div>
                 <div className="font-mono text-[12px] min-[360px]:text-[12.5px] sm:text-[13px] font-black text-emerald-300 tracking-tighter whitespace-nowrap drop-shadow-[0_0_8px_rgba(52,211,153,0.25)]">
